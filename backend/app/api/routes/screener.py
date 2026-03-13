@@ -9,8 +9,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from app.services.screener import run_screener, WATCHLISTS, ASSET_META
-from app.services.ollama import ollama
+from app.core.screener import run_screener, WATCHLISTS, ASSET_META
+from app.integrations.ollama import ollama
 
 router = APIRouter(prefix="/screener", tags=["Screener"])
 

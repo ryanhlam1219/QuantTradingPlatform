@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from app.services.risk_manager import (
+from app.core.risk import (
     fixed_fractional_size,
     kelly_fraction,
     portfolio_risk_report,

@@ -1,6 +1,6 @@
 """Unit tests for all trading strategies."""
 import pytest
-from app.algorithms import get_strategy, list_strategies, STRATEGY_REGISTRY
+from app.strategies.registry import get_strategy, list_strategies, STRATEGY_REGISTRY
 from app.models.signal import SignalType
 
 

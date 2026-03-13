@@ -1,7 +1,7 @@
 import asyncio
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from app.algorithms import list_strategies, get_strategy, STRATEGY_REGISTRY
+from app.strategies.registry import list_strategies, get_strategy, STRATEGY_REGISTRY
 from app.models.candlestick import Timeframe, Broker
 from app.models.backtest import BacktestConfig
 from app.backtesting.engine import BacktestEngine

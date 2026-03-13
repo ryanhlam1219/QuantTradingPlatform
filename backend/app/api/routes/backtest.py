@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.models.backtest import BacktestConfig
 from app.backtesting import BacktestEngine
 from app.brokers import get_broker
-from app.algorithms import STRATEGY_REGISTRY
+from app.strategies.registry import STRATEGY_REGISTRY
 
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
 

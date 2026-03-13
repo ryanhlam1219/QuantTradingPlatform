@@ -25,8 +25,8 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from app.services.autotrader import run_autotrader
-from app.executor.alpaca_executor import AlpacaExecutor
+from app.core.autotrader import run_autotrader
+from app.execution.alpaca_executor import AlpacaExecutor
 
 log = logging.getLogger(__name__)
 

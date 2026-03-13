@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from app.services.portfolio_builder import build_portfolio, execute_portfolio, validate_portfolio
+from app.core.portfolio import build_portfolio, execute_portfolio, validate_portfolio
 
 router = APIRouter(prefix="/portfolio", tags=["Portfolio"])
 
@@ -163,5 +163,5 @@ async def chat(req: ChatRequest):
 @router.get("/ollama")
 async def ollama_status():
     """Check if Ollama is running and which models are loaded."""
-    from app.services.ollama import ollama
+    from app.integrations.ollama import ollama
     return await ollama.check_health()

@@ -1,8 +1,12 @@
 version: "3.9"
 
+# Optional profiles:
+#   docker compose --profile monitoring up   → starts postgres, redis, backend, frontend, prometheus, grafana
+#   docker compose up                        → starts postgres, redis, backend, frontend only
+
 services:
   postgres:
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     environment:
       POSTGRES_USER: trading
       POSTGRES_PASSWORD: trading
@@ -11,11 +15,21 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trading -d trading_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -29,11 +43,16 @@ services:
     env_file:
       - ./backend/.env
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./backend:/app
+      - ./logs:/app/../../logs   # persist logs/ outside the container
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # NOTE: DATABASE_URL and REDIS_URL are defined above but not yet consumed by
+    # application code — Phase 8 (Database Migration) will wire these up.
 
   frontend:
     build:
@@ -47,5 +66,35 @@ services:
       - ./frontend:/app
       - /app/node_modules
 
+  # ── Monitoring (Phase 7) — uncomment or use: docker compose --profile monitoring up ──
+
+  # prometheus:
+  #   profiles: [monitoring]
+  #   image: prom/prometheus:latest
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - promdata:/prometheus
+  #   command:
+  #     - "--config.file=/etc/prometheus/prometheus.yml"
+  #     - "--storage.tsdb.path=/prometheus"
+  #     - "--storage.tsdb.retention.time=30d"
+
+  # grafana:
+  #   profiles: [monitoring]
+  #   image: grafana/grafana:latest
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - grafdata:/var/lib/grafana
+  #     - ./grafana/provisioning:/etc/grafana/provisioning
+  #   depends_on:
+  #     - prometheus
+
 volumes:
   pgdata:
+  # promdata:   # uncomment when enabling monitoring profile
+  # grafdata:   # uncomment when enabling monitoring profile

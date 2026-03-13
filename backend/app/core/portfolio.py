@@ -22,8 +22,8 @@ from app.brokers import get_broker
 from app.models.candlestick import Timeframe, Broker
 from app.models.backtest import BacktestConfig
 from app.backtesting.engine import BacktestEngine
-from app.executor.alpaca_executor import AlpacaExecutor
-from app.services.ollama import ollama
+from app.execution.alpaca_executor import AlpacaExecutor
+from app.integrations.ollama import ollama
 
 log = logging.getLogger(__name__)
 

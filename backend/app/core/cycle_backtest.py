@@ -29,8 +29,8 @@ from app.brokers import get_broker
 from app.models.candlestick import Timeframe, Broker
 from app.models.backtest import BacktestConfig
 from app.backtesting.engine import BacktestEngine
-from app.algorithms import STRATEGY_REGISTRY
-from app.services.autotrader import MIN_WEIGHT, MAX_WEIGHT
+from app.strategies.registry import STRATEGY_REGISTRY
+from app.core.autotrader import MIN_WEIGHT, MAX_WEIGHT
 
 log = logging.getLogger(__name__)
 

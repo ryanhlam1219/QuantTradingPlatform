@@ -10,8 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.routes import health, market_data, algorithms, backtest, trades, screener, research, portfolio, autotrader, risk
-from app.api.routes import cycles, admin
-from app.services.cycle_manager import cycle_manager
+from app.api.routes import cycles, admin, candlesticks, strategies
+from app.core.cycle_manager import cycle_manager
 
 # ── File logging ─────────────────────────────────────────────────────────────
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
@@ -134,9 +134,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Route registrations ──────────────────────────────────────────────────────
+# Route file            Prefix                  Module
+# -----------           ------                  ------
+# health.py             /health                 api/routes/health.py
+# market_data.py        /market-data            api/routes/market_data.py
+# candlesticks.py       /candles                api/routes/candlesticks.py
+# algorithms.py         /algorithms             api/routes/algorithms.py
+# strategies.py         /strategies             api/routes/strategies.py
+# backtest.py           /backtest               api/routes/backtest.py
+# trades.py             /trades                 api/routes/trades.py
+# screener.py           /screener               api/routes/screener.py
+# research.py           /research               api/routes/research.py
+# portfolio.py          /portfolio              api/routes/portfolio.py
+# autotrader.py         /autotrader             api/routes/autotrader.py
+# cycles.py             /autotrader/cycles      api/routes/cycles.py
+# risk.py               /risk                   api/routes/risk.py
+# admin.py              /admin                  api/routes/admin.py
 app.include_router(health.router)
 app.include_router(market_data.router)
+app.include_router(candlesticks.router)
 app.include_router(algorithms.router)
+app.include_router(strategies.router)
 app.include_router(backtest.router)
 app.include_router(trades.router)
 app.include_router(screener.router)

@@ -20,6 +20,9 @@ _REGISTRY: dict[str, type[BaseStrategy]] = {
     "grid_trading":             GridTradingStrategy,
 }
 
+# Public alias — use STRATEGY_REGISTRY everywhere instead of _REGISTRY
+STRATEGY_REGISTRY = _REGISTRY
+
 
 def get_strategy(name: str, params: Optional[dict] = None) -> BaseStrategy:
     """Instantiate a strategy by name with optional params."""

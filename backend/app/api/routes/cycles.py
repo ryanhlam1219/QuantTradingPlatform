@@ -18,9 +18,9 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.executor.alpaca_executor import AlpacaExecutor
+from app.execution.alpaca_executor import AlpacaExecutor
 
-from app.services.cycle_manager import cycle_manager
+from app.core.cycle_manager import cycle_manager
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/autotrader/cycles", tags=["AutoTrader Cycles"])

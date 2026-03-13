@@ -9,7 +9,7 @@ from typing import Optional
 from app.models.candlestick import CandleSeries
 from app.models.backtest import BacktestConfig, BacktestResult, Trade
 from app.models.signal import Signal, SignalType
-from app.algorithms import get_strategy
+from app.strategies.registry import get_strategy
 from app.backtesting.metrics import (
     calc_sharpe_ratio, calc_sortino_ratio, calc_max_drawdown,
     calc_annualized_return, calc_calmar_ratio, calc_profit_factor,

@@ -147,7 +147,7 @@ async def portfolio_risk_report(
       - Sector exposure
       - Pairwise correlation matrix + high-correlation warnings (> 0.80)
     """
-    from app.services.screener import ASSET_META  # lazy to avoid circular import
+    from app.core.screener import ASSET_META  # lazy to avoid circular import
 
     if not holdings:
         return {"error": "No holdings provided."}

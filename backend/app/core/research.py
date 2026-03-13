@@ -22,9 +22,9 @@ from app.brokers import get_broker
 from app.models.candlestick import Timeframe, Broker
 from app.models.backtest import BacktestConfig
 from app.backtesting.engine import BacktestEngine
-from app.algorithms import STRATEGY_REGISTRY
-from app.services.screener import compute_price_stats
-from app.services.ollama import ollama
+from app.strategies.registry import STRATEGY_REGISTRY
+from app.core.screener import compute_price_stats
+from app.integrations.ollama import ollama
 
 log = logging.getLogger(__name__)
 

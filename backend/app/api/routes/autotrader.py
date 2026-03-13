@@ -11,9 +11,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from app.services.autotrader import run_autotrader
-from app.services.cycle_backtest import run_cycle_backtest
-from app.executor.alpaca_executor import AlpacaExecutor
+from app.core.autotrader import run_autotrader
+from app.core.cycle_backtest import run_cycle_backtest
+from app.execution.alpaca_executor import AlpacaExecutor
 from app.config import settings
 
 log = logging.getLogger(__name__)

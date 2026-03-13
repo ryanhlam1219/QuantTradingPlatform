@@ -8,7 +8,7 @@ from app.backtesting.metrics import (
 )
 from app.models.backtest import BacktestConfig
 from app.models.candlestick import Timeframe, Broker
-from app.algorithms import STRATEGY_REGISTRY
+from app.strategies.registry import STRATEGY_REGISTRY
 
 
 class TestMetrics:

@@ -8,7 +8,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.services.research import research_asset
+from app.core.research import research_asset
 
 router = APIRouter(prefix="/research", tags=["Research"])
 

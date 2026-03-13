@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from app.executor.alpaca_executor import AlpacaExecutor
+from app.execution.alpaca_executor import AlpacaExecutor
 from app.config import settings
 
 router = APIRouter(prefix="/trades", tags=["Trades"])

@@ -15,8 +15,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.services.research import research_asset
-from app.services.ollama import ollama
+from app.core.research import research_asset
+from app.integrations.ollama import ollama
 
 log = logging.getLogger(__name__)
 
