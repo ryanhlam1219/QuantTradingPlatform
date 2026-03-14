@@ -1480,7 +1480,7 @@ code { background: var(--bg-elevated); padding: 2px 6px; border-radius: 4px; }
   margin-bottom: 14px;
   border: 1px solid;
 }
-.wfv-verdict.validated  { background: rgba(0,212,160,0.07);  border-color: rgba(0,212,160,0.25); }
+.wfv-verdict.go         { background: rgba(0,212,160,0.07);  border-color: rgba(0,212,160,0.25); }
 .wfv-verdict.caution    { background: rgba(255,159,64,0.07); border-color: rgba(255,159,64,0.25); }
 .wfv-verdict.rejected   { background: rgba(255,79,109,0.07); border-color: rgba(255,79,109,0.25); }
 
@@ -1500,7 +1500,7 @@ code { background: var(--bg-elevated); padding: 2px 6px; border-radius: 4px; }
   flex-shrink: 0;
   margin-top: 2px;
 }
-.wfv-verdict.validated  .wfv-verdict-badge { background: rgba(0,212,160,0.15);  color: var(--green); }
+.wfv-verdict.go         .wfv-verdict-badge { background: rgba(0,212,160,0.15);  color: var(--green); }
 .wfv-verdict.caution    .wfv-verdict-badge { background: rgba(255,159,64,0.15); color: var(--orange); }
 .wfv-verdict.rejected   .wfv-verdict-badge { background: rgba(255,79,109,0.15); color: var(--red); }
 

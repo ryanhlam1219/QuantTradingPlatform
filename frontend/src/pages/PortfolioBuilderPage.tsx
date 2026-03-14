@@ -497,12 +497,13 @@ export function PortfolioBuilderPage({ pendingItems = [], onPendingConsumed }: P
                     <p style={{ fontSize: "12px", color: "var(--text-dim)" }}>
                       ⚠ This places real market orders on your Alpaca paper account.
                       {validationResult
-                        ? validationResult.verdict.verdict === "VALIDATED"
+                        ? validationResult.verdict.verdict === "GO"
                           ? " ✓ Walk-forward validated — confidence is good."
                           : validationResult.verdict.verdict === "CAUTION"
                           ? " ⚠ Walk-forward shows degradation — consider reducing size."
                           : " ✗ Walk-forward rejected — review strategies before executing."
                         : " Run walk-forward validation above before executing."}
+
                     </p>
                   </div>
                   <button className="btn-execute live" onClick={executePlan} disabled={executing}>
