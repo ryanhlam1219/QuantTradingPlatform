@@ -307,7 +307,7 @@ Respond with ONLY this JSON:
 Respond with ONLY this JSON:
 {{
   "overall_score": <0-10>,
-  "go_no_go": "GO|NO_GO|CAUTION",
+  "go_no_go": "GO|REJECTED|CAUTION",
   "diversification_comment": "<one sentence>",
   "concentration_risk": "<one sentence>",
   "strongest_position": "<symbol>",

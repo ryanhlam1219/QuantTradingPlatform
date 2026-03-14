@@ -229,6 +229,9 @@ async def build_portfolio(
     ai_review = {}
     if review_with_ai:
         ai_review = await ollama.rate_portfolio(items, total_capital)
+        # Normalize NO_GO to REJECTED for consistency
+        if ai_review.get("go_no_go") == "NO_GO":
+            ai_review["go_no_go"] = "REJECTED"
 
     return {
         "items":          items,
