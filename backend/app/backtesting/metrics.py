@@ -9,9 +9,13 @@ def calc_sharpe_ratio(returns: list[float], risk_free_rate: float = 0.04) -> flo
     arr = np.array(returns)
     daily_rf = risk_free_rate / 252
     excess = arr - daily_rf
-    if excess.std() == 0:
+    std_dev = excess.std()
+    # Use tolerance instead of exact 0 check (floating point precision)
+    if std_dev < 1e-10:
         return 0.0
-    return float(np.sqrt(252) * excess.mean() / excess.std())
+    sharpe = float(np.sqrt(252) * excess.mean() / std_dev)
+    # Cap to ±10 to prevent extreme outliers from near-zero volatility
+    return max(-10.0, min(10.0, sharpe))
 
 
 def calc_sortino_ratio(returns: list[float], risk_free_rate: float = 0.04) -> float:
@@ -20,10 +24,16 @@ def calc_sortino_ratio(returns: list[float], risk_free_rate: float = 0.04) -> fl
     arr = np.array(returns)
     daily_rf = risk_free_rate / 252
     excess = arr - daily_rf
-    downside = arr[arr < 0]
-    if len(downside) == 0 or downside.std() == 0:
-        return float("inf") if excess.mean() > 0 else 0.0
-    return float(np.sqrt(252) * excess.mean() / downside.std())
+    downside = arr[arr < daily_rf]
+    if len(downside) == 0:
+        # No negative returns — return 0 instead of inf
+        return 0.0
+    downside_std = downside.std()
+    if downside_std < 1e-10:
+        return 0.0
+    sortino = float(np.sqrt(252) * excess.mean() / downside_std)
+    # Cap to ±10
+    return max(-10.0, min(10.0, sortino))
 
 
 def calc_max_drawdown(equity_curve: list[float]) -> float:
@@ -43,12 +53,16 @@ def calc_annualized_return(total_return: float, trading_days: int) -> float:
 
 
 def calc_calmar_ratio(annualized_return: float, max_drawdown: float) -> float:
-    if max_drawdown == 0:
-        return float("inf") if annualized_return > 0 else 0.0
-    return float(annualized_return / abs(max_drawdown))
+    if abs(max_drawdown) < 1e-10:
+        return 0.0
+    calmar = float(annualized_return / abs(max_drawdown))
+    # Cap to ±10
+    return max(-10.0, min(10.0, calmar))
 
 
 def calc_profit_factor(gross_profit: float, gross_loss: float) -> float:
-    if gross_loss == 0:
-        return float("inf") if gross_profit > 0 else 0.0
-    return float(gross_profit / abs(gross_loss))
+    if abs(gross_loss) < 1e-10:
+        return 0.0
+    pf = float(gross_profit / abs(gross_loss))
+    # Cap to ±10
+    return max(-10.0, min(10.0, pf))
