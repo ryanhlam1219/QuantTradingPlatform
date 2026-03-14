@@ -183,7 +183,12 @@ class AlpacaBroker(BaseBroker):
                     headers=self.headers,
                     timeout=5.0,
                 )
-                return resp.status_code == 200
+                if resp.status_code == 200:
+                    data = resp.json()
+                    # Check if account is enabled for trading
+                    if not data.get("trading_blocked"):
+                        return True
+            return False
         except Exception:
             return False
 
@@ -260,13 +265,25 @@ class AlpacaBroker(BaseBroker):
             "time_in_force": "day",
         }
         async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{settings.alpaca_base_url}/v2/orders",
-                headers=self.headers,
-                json=payload,
-                timeout=15.0,
-            )
-            resp.raise_for_status()
+            try:
+                resp = await client.post(
+                    f"{settings.alpaca_base_url}/v2/orders",
+                    headers=self.headers,
+                    json=payload,
+                    timeout=15.0,
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                # Log detailed error response from Alpaca
+                try:
+                    error_detail = e.response.json()
+                except:
+                    error_detail = e.response.text
+                import logging
+                logging.getLogger(__name__).error(
+                    f"Alpaca order submission failed: {e.response.status_code} - {error_detail}"
+                )
+                raise
             data = resp.json()
             return type("OrderResponse", (), {
                 "id": data.get("id"),
