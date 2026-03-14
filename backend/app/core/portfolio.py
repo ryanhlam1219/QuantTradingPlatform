@@ -361,7 +361,7 @@ def _validation_verdict(items: list[dict]) -> dict:
     pos_pct = positive_oos / len(valid)
 
     if avg_oos >= 0.5 and ratio >= 0.6 and pos_pct >= 0.5:
-        verdict = "VALIDATED"
+        verdict = "GO"
         summary = (
             f"Out-of-sample Sharpe ({avg_oos:.2f}) is {ratio*100:.0f}% of in-sample ({avg_is:.2f}). "
             f"{positive_oos}/{len(valid)} positions were profitable in the hold-out period. "
@@ -375,7 +375,7 @@ def _validation_verdict(items: list[dict]) -> dict:
             "Consider reducing position sizes or extending the evaluation period."
         )
     else:
-        verdict = "REJECTED"
+        verdict = "NO_GO"
         summary = (
             f"Out-of-sample Sharpe ({avg_oos:.2f}) does not support in-sample results ({avg_is:.2f}). "
             "The strategy does not appear to generalise to the hold-out period. "
