@@ -118,6 +118,7 @@ class MACDStrategy(BaseStrategy):
                     timestamp=ts,
                     metadata={
                         "macd": curr_macd, "signal": curr_sig, "histogram": histogram,
+                        "close": closes[i],
                     },
                 ))
 
@@ -132,6 +133,7 @@ class MACDStrategy(BaseStrategy):
                     timestamp=ts,
                     metadata={
                         "macd": curr_macd, "signal": curr_sig, "histogram": histogram,
+                        "close": closes[i],
                     },
                 ))
 

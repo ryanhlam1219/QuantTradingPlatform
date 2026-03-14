@@ -9,6 +9,7 @@ from typing import Optional
 from app.models.candlestick import CandleSeries
 from app.models.backtest import BacktestConfig, BacktestResult, Trade
 from app.models.trade import TradeSignal, OrderSide
+from app.models.signal import Signal, SignalType
 from app.strategies.registry import get_strategy
 from app.backtesting.metrics import (
     calc_sharpe_ratio, calc_sortino_ratio, calc_max_drawdown,
@@ -32,20 +33,40 @@ def _safe_float(value: float) -> float:
     return value
 
 
+def _trade_signal_to_signal(ts: TradeSignal) -> Signal:
+    """Convert TradeSignal (strategy output) to Signal (backtest result format)."""
+    signal_type_map = {
+        OrderSide.BUY: SignalType.BUY,
+        OrderSide.SELL: SignalType.SELL,
+    }
+    return Signal(
+        symbol=ts.symbol,
+        signal_type=signal_type_map.get(ts.side, SignalType.HOLD),
+        price=ts.metadata.get("close", 0.0),
+        timestamp=ts.timestamp,
+        strategy=ts.strategy_name,
+        confidence=ts.confidence,
+        metadata=ts.metadata,
+    )
+
+
 class BacktestEngine:
     def run(self, config: BacktestConfig, series: CandleSeries) -> BacktestResult:
         strategy = get_strategy(config.strategy, config.strategy_params)
-        signals = strategy.generate_signals(series)
+        trade_signals = strategy.generate_signals(series)
 
         # Normalise config dates to UTC so comparisons never throw TypeError
         start_utc = _to_utc(config.start_date)
         end_utc   = _to_utc(config.end_date)
 
-        signals = [s for s in signals if start_utc <= _to_utc(s.timestamp) <= end_utc]
+        trade_signals = [s for s in trade_signals if start_utc <= _to_utc(s.timestamp) <= end_utc]
 
-        trades = self._simulate_trades(signals, series, config)
+        trades = self._simulate_trades(trade_signals, series, config)
         equity_curve = self._build_equity_curve(trades, series, config)
         metrics = self._calculate_metrics(trades, equity_curve, config)
+
+        # Convert TradeSignal to Signal for backtest result
+        signals = [_trade_signal_to_signal(ts) for ts in trade_signals]
 
         return BacktestResult(
             config=config,
@@ -61,10 +82,15 @@ class BacktestEngine:
         capital = config.initial_capital
 
         for signal in signals:
+            price = signal.metadata.get("close", 0)
+            if price <= 0:
+                # Skip signals without valid price
+                continue
+                
             if signal.side == OrderSide.BUY:
-                price = signal.metadata.get("close", 0) * (1 + config.slippage)
+                price = price * (1 + config.slippage)
             else:
-                price = signal.metadata.get("close", 0) * (1 - config.slippage)
+                price = price * (1 - config.slippage)
 
             if signal.side == OrderSide.BUY and open_trade is None:
                 quantity = (capital * 0.95) / price  # Use 95% of capital per trade

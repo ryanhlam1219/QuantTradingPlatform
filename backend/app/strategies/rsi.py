@@ -109,7 +109,7 @@ class RSIStrategy(BaseStrategy):
                     confidence=confidence,
                     reason=f"RSI({period}) crossed above oversold level {oversold} (RSI={curr_rsi:.1f})",
                     timestamp=ts,
-                    metadata={"rsi": curr_rsi, "oversold": oversold},
+                    metadata={"rsi": curr_rsi, "oversold": oversold, "close": closes[i]},
                 ))
 
             # Cross below overbought line → SELL
@@ -122,7 +122,7 @@ class RSIStrategy(BaseStrategy):
                     confidence=confidence,
                     reason=f"RSI({period}) crossed below overbought level {overbought} (RSI={curr_rsi:.1f})",
                     timestamp=ts,
-                    metadata={"rsi": curr_rsi, "overbought": overbought},
+                    metadata={"rsi": curr_rsi, "overbought": overbought, "close": closes[i]},
                 ))
 
         return signals

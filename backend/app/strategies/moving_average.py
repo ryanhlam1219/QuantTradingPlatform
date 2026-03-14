@@ -104,7 +104,7 @@ class MovingAverageCrossoverStrategy(BaseStrategy):
                         confidence=confidence,
                         reason=f"{self.params['ma_type'].upper()}({fast}) crossed above {self.params['ma_type'].upper()}({slow})",
                         timestamp=ts,
-                        metadata={"fast_ma": curr_fast, "slow_ma": curr_slow},
+                        metadata={"fast_ma": curr_fast, "slow_ma": curr_slow, "close": closes[i]},
                     )
                 )
             # Death cross: fast crosses below slow
@@ -118,7 +118,7 @@ class MovingAverageCrossoverStrategy(BaseStrategy):
                         confidence=confidence,
                         reason=f"{self.params['ma_type'].upper()}({fast}) crossed below {self.params['ma_type'].upper()}({slow})",
                         timestamp=ts,
-                        metadata={"fast_ma": curr_fast, "slow_ma": curr_slow},
+                        metadata={"fast_ma": curr_fast, "slow_ma": curr_slow, "close": closes[i]},
                     )
                 )
 

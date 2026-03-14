@@ -100,8 +100,7 @@ class GridTradingStrategy(BaseStrategy):
                             "grid_level_index": idx,
                             "grid_price": level,
                             "grid_type": "buy",
-                            "spacing_pct": self.params["grid_spacing_pct"],
-                        },
+                            "spacing_pct": self.params["grid_spacing_pct"],                            "close": candle.close,                        },
                     ))
 
             # Check sell grid levels
@@ -121,6 +120,7 @@ class GridTradingStrategy(BaseStrategy):
                             "grid_price": level,
                             "grid_type": "sell",
                             "spacing_pct": self.params["grid_spacing_pct"],
+                            "close": candle.close,
                         },
                     ))
 

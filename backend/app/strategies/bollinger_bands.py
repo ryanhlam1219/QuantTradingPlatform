@@ -103,7 +103,7 @@ class BollingerBandsStrategy(BaseStrategy):
                     timestamp=ts,
                     metadata={
                         "upper_band": u, "middle_band": m, "lower_band": l,
-                        "bandwidth": bandwidth, "pct_b": pct_b,
+                        "bandwidth": bandwidth, "pct_b": pct_b, "close": price,
                     },
                 ))
 
@@ -119,7 +119,7 @@ class BollingerBandsStrategy(BaseStrategy):
                     timestamp=ts,
                     metadata={
                         "upper_band": u, "middle_band": m, "lower_band": l,
-                        "bandwidth": bandwidth, "pct_b": pct_b,
+                        "bandwidth": bandwidth, "pct_b": pct_b, "close": price,
                     },
                 ))
 
