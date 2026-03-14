@@ -21,7 +21,11 @@ def mock_broker():
     broker.get_account_cash = AsyncMock(return_value=50000.0)
     broker.get_account_info = AsyncMock(
         return_value=AccountInfo(
-            buying_power=50000.0, portfolio_value=150000.0, cash=50000.0
+            buying_power=50000.0,
+            portfolio_value=150000.0,
+            cash=50000.0,
+            equity=150000.0,
+            last_equity=148000.0,
         )
     )
     broker.get_positions = AsyncMock(return_value=[])
@@ -70,12 +74,14 @@ def test_is_paper_trading(executor):
 
 @pytest.mark.asyncio
 async def test_get_account_success(executor, mock_broker):
-    """Test get_account returns account info."""
+    """Test get_account returns account info with all fields."""
     result = await executor.get_account()
 
     assert result["buying_power"] == 50000.0
     assert result["portfolio_value"] == 150000.0
     assert result["cash"] == 50000.0
+    assert result["equity"] == 150000.0
+    assert result["last_equity"] == 148000.0
     mock_broker.get_account_info.assert_called_once()
 
 
@@ -87,6 +93,39 @@ async def test_get_account_error_handling(executor, mock_broker):
     with pytest.raises(Exception) as exc_info:
         await executor.get_account()
     assert "API error" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_get_positions_with_unrealized_pl(executor, mock_broker):
+    """Test get_positions returns positions with unrealized P&L."""
+    positions = [
+        Position(
+            symbol="AAPL",
+            quantity=100.0,
+            avg_fill_price=150.0,
+            current_price=152.0,
+            side="long",
+            unrealized_pl=200.0,  # (152.0 - 150.0) * 100
+        ),
+        Position(
+            symbol="GOOGL",
+            quantity=50.0,
+            avg_fill_price=2800.0,
+            current_price=2790.0,
+            side="long",
+            unrealized_pl=-500.0,  # (2790.0 - 2800.0) * 50
+        ),
+    ]
+    mock_broker.get_positions.return_value = positions
+
+    result = await executor.get_positions()
+
+    assert len(result) == 2
+    assert result[0]["symbol"] == "AAPL"
+    assert result[0]["unrealized_pl"] == 200.0
+    assert result[1]["symbol"] == "GOOGL"
+    assert result[1]["unrealized_pl"] == -500.0
+    mock_broker.get_positions.assert_called_once()
 
 
 @pytest.mark.asyncio

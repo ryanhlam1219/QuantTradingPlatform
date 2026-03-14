@@ -41,27 +41,35 @@ def test_is_crypto_detection(broker):
 
 
 def test_account_info_structure():
-    """Test AccountInfo dataclass."""
+    """Test AccountInfo dataclass with all fields."""
     acct = AccountInfo(
-        buying_power=50000.0, portfolio_value=150000.0, cash=75000.0
+        buying_power=50000.0,
+        portfolio_value=150000.0,
+        cash=75000.0,
+        equity=150000.0,
+        last_equity=148000.0,
     )
     assert acct.buying_power == 50000.0
     assert acct.portfolio_value == 150000.0
     assert acct.cash == 75000.0
+    assert acct.equity == 150000.0
+    assert acct.last_equity == 148000.0
 
 
 def test_position_structure():
-    """Test Position dataclass."""
+    """Test Position dataclass with unrealized P&L."""
     pos = Position(
         symbol="AAPL",
         quantity=100.0,
         avg_fill_price=150.25,
         current_price=152.50,
         side="long",
+        unrealized_pl=225.0,  # (152.50 - 150.25) * 100
     )
     assert pos.symbol == "AAPL"
     assert pos.quantity == 100.0
     assert pos.side == "long"
+    assert pos.unrealized_pl == 225.0
 
 
 def test_position_side_long():

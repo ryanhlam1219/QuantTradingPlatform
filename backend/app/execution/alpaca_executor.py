@@ -30,12 +30,14 @@ class AlpacaExecutor:
         return self._settings.paper_trading
 
     async def get_account(self) -> dict[str, Any]:
-        """Get account info including buying power."""
+        """Get account info including buying power, equity, and cash."""
         account = await self._broker.get_account_info()
         return {
             "buying_power": account.buying_power,
             "portfolio_value": account.portfolio_value,
             "cash": account.cash,
+            "equity": account.equity,
+            "last_equity": account.last_equity,
         }
 
     async def place_order(
@@ -45,6 +47,7 @@ class AlpacaExecutor:
         side: str = "buy",
         order_type: str = "market",
         time_in_force: str = "day",
+        limit_price: Optional[float] = None,
     ) -> dict[str, Any]:
         """Place an order (wrapper compatible with cycle_manager calls)."""
         from app.models.trade import OrderSide
@@ -73,6 +76,69 @@ class AlpacaExecutor:
             }
         except Exception as exc:
             log.error("Order placement failed for %s: %s", symbol, exc)
+            raise
+
+    async def get_positions(self) -> list[dict[str, Any]]:
+        """Get all open positions with unrealized P&L."""
+        try:
+            positions = await self._broker.get_positions()
+            return [
+                {
+                    "symbol": pos.symbol,
+                    "qty": pos.quantity,
+                    "avg_fill_price": pos.avg_fill_price,
+                    "current_price": pos.current_price,
+                    "side": pos.side,
+                    "unrealized_pl": pos.unrealized_pl,
+                }
+                for pos in positions
+            ]
+        except Exception as exc:
+            log.error("Failed to fetch positions: %s", exc)
+            raise
+
+    async def get_orders(self, status: str = "open") -> list[dict[str, Any]]:
+        """Get orders by status (open, closed, all)."""
+        try:
+            # Call Alpaca API to get orders with status filter
+            orders = await self._broker.get_orders(status)
+            log.info("Retrieved %d %s orders", len(orders), status)
+            return orders
+        except Exception as exc:
+            log.error("Failed to fetch %s orders: %s", status, exc)
+            raise
+
+    async def cancel_order(self, order_id: str) -> bool:
+        """Cancel an open order."""
+        try:
+            # Call Alpaca API to cancel the order
+            ok = await self._broker.cancel_order(order_id)
+            log.info("Order %s cancelled", order_id)
+            return ok
+        except Exception as exc:
+            log.error("Failed to cancel order %s: %s", order_id, exc)
+            raise
+
+    async def close_position(self, symbol: str) -> dict[str, Any]:
+        """Close an open position by selling it."""
+        try:
+            positions = await self._broker.get_positions()
+            position = next((p for p in positions if p.symbol == symbol), None)
+            
+            if not position:
+                raise Exception(f"No position found for {symbol}")
+            
+            # Place sell order for entire position
+            result = await self.place_order(
+                symbol=symbol,
+                qty=position.quantity,
+                side="sell",
+                order_type="market",
+            )
+            log.info("Closed position for %s", symbol)
+            return result
+        except Exception as exc:
+            log.error("Failed to close position for %s: %s", symbol, exc)
             raise
 
     async def execute_signal(

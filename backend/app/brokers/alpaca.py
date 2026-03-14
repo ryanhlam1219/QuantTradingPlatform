@@ -26,6 +26,7 @@ class Position:
     avg_fill_price: float
     current_price: float
     side: str  # "long" or "short"
+    unrealized_pl: float = 0.0  # Unrealized profit/loss
 
 
 @dataclass
@@ -34,6 +35,8 @@ class AccountInfo:
     buying_power: float
     portfolio_value: float
     cash: float
+    equity: float = 0.0  # Current portfolio value (same as portfolio_value)
+    last_equity: float = 0.0  # Previous day's equity
 
 TIMEFRAME_MAP = {
     Timeframe.M1: "1Min",
@@ -185,7 +188,7 @@ class AlpacaBroker(BaseBroker):
             return False
 
     async def get_account_info(self) -> AccountInfo:
-        """Fetch account details (buying power, portfolio value, cash)."""
+        """Fetch account details (buying power, portfolio value, cash, equity, last_equity)."""
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 f"{settings.alpaca_base_url}/v2/account",
@@ -198,6 +201,8 @@ class AlpacaBroker(BaseBroker):
                 buying_power=float(data.get("buying_power", 0)),
                 portfolio_value=float(data.get("portfolio_value", 0)),
                 cash=float(data.get("cash", 0)),
+                equity=float(data.get("equity", data.get("portfolio_value", 0))),
+                last_equity=float(data.get("last_equity", data.get("equity", 0))),
             )
 
     async def get_account_cash(self) -> float:
@@ -229,13 +234,18 @@ class AlpacaBroker(BaseBroker):
             data = resp.json()
             positions = []
             for pos in data if isinstance(data, list) else data.get("positions", []):
+                qty = float(pos["qty"])
+                avg_fill = float(pos.get("avg_fill_price", 0))
+                current = float(pos.get("current_price", 0))
+                unrealized = (current - avg_fill) * qty if avg_fill > 0 else 0.0
                 positions.append(
                     Position(
                         symbol=pos["symbol"],
-                        quantity=float(pos["qty"]),
-                        avg_fill_price=float(pos.get("avg_fill_price", 0)),
-                        current_price=float(pos.get("current_price", 0)),
-                        side="long" if float(pos["qty"]) > 0 else "short",
+                        quantity=qty,
+                        avg_fill_price=avg_fill,
+                        current_price=current,
+                        side="long" if qty > 0 else "short",
+                        unrealized_pl=unrealized,
                     )
                 )
             return positions
@@ -264,3 +274,27 @@ class AlpacaBroker(BaseBroker):
                 "symbol": data.get("symbol"),
                 "qty": data.get("qty"),
             })()
+
+    async def get_orders(self, status: str = "open") -> list:
+        """Fetch orders filtered by status: open, closed, all."""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{settings.alpaca_base_url}/v2/orders",
+                headers=self.headers,
+                params={"status": status, "limit": 100},
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data if isinstance(data, list) else data.get("orders", [])
+
+    async def cancel_order(self, order_id: str) -> bool:
+        """Cancel an open order."""
+        async with httpx.AsyncClient() as client:
+            resp = await client.delete(
+                f"{settings.alpaca_base_url}/v2/orders/{order_id}",
+                headers=self.headers,
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+            return True
