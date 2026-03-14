@@ -8,12 +8,32 @@ Notes:
   - The ALPACA_DATA_FEED env var controls this; defaults to "iex".
 """
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Any
+from dataclasses import dataclass
 import httpx
 
 from app.brokers.base import BaseBroker
 from app.models.candlestick import Candle, CandleSeries, Timeframe, Broker, AssetClass
+from app.models.trade import Order
 from app.config import settings
+
+
+@dataclass
+class Position:
+    """Represents an open position at the broker."""
+    symbol: str
+    quantity: float
+    avg_fill_price: float
+    current_price: float
+    side: str  # "long" or "short"
+
+
+@dataclass
+class AccountInfo:
+    """Represents account info from broker."""
+    buying_power: float
+    portfolio_value: float
+    cash: float
 
 TIMEFRAME_MAP = {
     Timeframe.M1: "1Min",
@@ -163,3 +183,84 @@ class AlpacaBroker(BaseBroker):
                 return resp.status_code == 200
         except Exception:
             return False
+
+    async def get_account_info(self) -> AccountInfo:
+        """Fetch account details (buying power, portfolio value, cash)."""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{settings.alpaca_base_url}/v2/account",
+                headers=self.headers,
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return AccountInfo(
+                buying_power=float(data.get("buying_power", 0)),
+                portfolio_value=float(data.get("portfolio_value", 0)),
+                cash=float(data.get("cash", 0)),
+            )
+
+    async def get_account_cash(self) -> float:
+        """Get available cash balance."""
+        account = await self.get_account_info()
+        return account.cash
+
+    async def is_market_open(self) -> bool:
+        """Check if the stock market is currently open."""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{settings.alpaca_base_url}/v2/clock",
+                headers=self.headers,
+                timeout=5.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("is_open", False)
+
+    async def get_positions(self) -> list[Position]:
+        """Fetch all open positions."""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{settings.alpaca_base_url}/v2/positions",
+                headers=self.headers,
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            positions = []
+            for pos in data if isinstance(data, list) else data.get("positions", []):
+                positions.append(
+                    Position(
+                        symbol=pos["symbol"],
+                        quantity=float(pos["qty"]),
+                        avg_fill_price=float(pos.get("avg_fill_price", 0)),
+                        current_price=float(pos.get("current_price", 0)),
+                        side="long" if float(pos["qty"]) > 0 else "short",
+                    )
+                )
+            return positions
+
+    async def submit_order(self, order: Order) -> Any:
+        """Submit an order to Alpaca."""
+        payload = {
+            "symbol": order.symbol,
+            "qty": order.quantity,
+            "side": order.side.value.lower(),  # "buy" or "sell"
+            "type": order.order_type.value.lower(),  # "market", "limit", etc.
+            "time_in_force": "day",
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{settings.alpaca_base_url}/v2/orders",
+                headers=self.headers,
+                json=payload,
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return type("OrderResponse", (), {
+                "id": data.get("id"),
+                "status": data.get("status"),
+                "symbol": data.get("symbol"),
+                "qty": data.get("qty"),
+            })()

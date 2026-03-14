@@ -27,7 +27,7 @@ class AlpacaExecutor:
 
     @property
     def is_paper(self) -> bool:
-        return self._settings.alpaca_paper_trading
+        return self._settings.paper_trading
 
     async def get_account(self) -> dict[str, Any]:
         """Get account info including buying power."""
