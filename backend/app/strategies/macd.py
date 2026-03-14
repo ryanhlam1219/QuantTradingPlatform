@@ -6,6 +6,7 @@ SELL when MACD line crosses below the signal line (bearish crossover).
 
 Histogram zero-line crossover confirmation is included as metadata.
 """
+from __future__ import annotations
 from datetime import timezone
 
 from app.strategies.base import BaseStrategy

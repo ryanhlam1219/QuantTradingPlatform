@@ -1,3 +1,5 @@
+import { logger } from "../utils/logger";
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 /** Formats any error into a readable string, handling FastAPI 422 arrays */
@@ -22,18 +24,28 @@ function formatError(err: any): string {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
+  const method = options?.method || "GET";
+  const start = performance.now();
+
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       headers: { "Content-Type": "application/json" },
       ...options,
     });
   } catch (networkErr: any) {
+    logger.apiError(method, path, networkErr);
     throw new Error(`Network error — is the backend running? (${networkErr.message})`);
   }
+
+  const duration = Math.round(performance.now() - start);
+  logger.apiCall(method, path, res.status, duration);
+
   if (!res.ok) {
     let errBody: any;
     try { errBody = await res.json(); } catch { errBody = { detail: res.statusText }; }
-    throw new Error(formatError(errBody));
+    const errMsg = formatError(errBody);
+    logger.error("api", `${method} ${path} failed`, { status: res.status, error: errMsg });
+    throw new Error(errMsg);
   }
   return res.json();
 }

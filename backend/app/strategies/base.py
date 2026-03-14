@@ -4,6 +4,7 @@ Abstract trading strategy interface.
 All strategies must inherit from BaseStrategy and implement `generate_signals`.
 Strategies are stateless — they receive a CandleSeries and return signals.
 """
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 

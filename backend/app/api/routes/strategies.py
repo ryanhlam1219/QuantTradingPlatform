@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from app.models.candlestick import TimeFrame, AssetClass, Broker
+from app.models.candlestick import Timeframe, AssetClass, Broker
 from app.models.trade import TradeSignal
 from app.strategies.registry import get_strategy, list_strategies
 
@@ -13,7 +13,7 @@ class SignalRequest(BaseModel):
     symbol: str
     broker: Broker = Broker.ALPACA
     asset_class: AssetClass = AssetClass.STOCK
-    timeframe: TimeFrame = TimeFrame.ONE_DAY
+    timeframe: Timeframe = Timeframe.D1
     start: datetime
     end: datetime
     strategy_params: dict = {}

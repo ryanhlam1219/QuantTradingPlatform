@@ -6,6 +6,7 @@ SELL when fast MA crosses BELOW slow MA (death cross).
 
 Supports both SMA and EMA variants.
 """
+from __future__ import annotations
 import numpy as np
 from datetime import timezone
 

@@ -8,7 +8,7 @@ from typing import Optional
 
 from app.models.candlestick import CandleSeries
 from app.models.backtest import BacktestConfig, BacktestResult, Trade
-from app.models.signal import Signal, SignalType
+from app.models.trade import TradeSignal, OrderSide
 from app.strategies.registry import get_strategy
 from app.backtesting.metrics import (
     calc_sharpe_ratio, calc_sortino_ratio, calc_max_drawdown,
@@ -55,18 +55,18 @@ class BacktestEngine:
             **metrics,
         )
 
-    def _simulate_trades(self, signals: list[Signal], series: CandleSeries, config: BacktestConfig) -> list[Trade]:
+    def _simulate_trades(self, signals: list[TradeSignal], series: CandleSeries, config: BacktestConfig) -> list[Trade]:
         trades = []
         open_trade: Optional[Trade] = None
         capital = config.initial_capital
 
         for signal in signals:
-            if signal.signal_type == SignalType.BUY:
-                price = signal.price * (1 + config.slippage)
+            if signal.side == OrderSide.BUY:
+                price = signal.metadata.get("close", 0) * (1 + config.slippage)
             else:
-                price = signal.price * (1 - config.slippage)
+                price = signal.metadata.get("close", 0) * (1 - config.slippage)
 
-            if signal.signal_type == SignalType.BUY and open_trade is None:
+            if signal.side == OrderSide.BUY and open_trade is None:
                 quantity = (capital * 0.95) / price  # Use 95% of capital per trade
                 commission = price * quantity * config.commission
                 open_trade = Trade(
@@ -79,7 +79,7 @@ class BacktestEngine:
                 )
                 capital -= price * quantity + commission
 
-            elif signal.signal_type == SignalType.SELL and open_trade is not None:
+            elif signal.side == OrderSide.SELL and open_trade is not None:
                 commission = price * open_trade.quantity * config.commission
                 pnl = (price - open_trade.entry_price) * open_trade.quantity - commission - open_trade.commission
                 pnl_pct = pnl / (open_trade.entry_price * open_trade.quantity)

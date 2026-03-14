@@ -11,6 +11,16 @@ export interface Candle {
 
 // ── Algorithms / Signals ────────────────────────────────────────────────────
 
+export interface Signal {
+  symbol: string;
+  side: "buy" | "sell";
+  strategy_name: string;
+  confidence: number;
+  reason: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface Strategy {
   name: string;
   display_name: string;
@@ -83,3 +93,5 @@ export interface CompareResult {
   equity_curve: { timestamp: string; equity: number }[];
   error?: string;
 }
+
+export type EquityPoint = { timestamp: string; equity: number };

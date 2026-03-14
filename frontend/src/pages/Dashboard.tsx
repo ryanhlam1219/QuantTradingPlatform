@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MetricCard } from "../components/dashboard/MetricCard";
 import { CandlestickChart } from "../components/charts/CandlestickChart";
 import { SignalFeed } from "../components/dashboard/SignalFeed";
 import { useCandles } from "../hooks/useCandles";
+import { api } from "../services/api";
+import { logger } from "../utils/logger";
 
 const SYMBOLS = ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "GOOGL", "SPY", "QQQ", "BTC/USD", "ETH/USD"];
 
@@ -19,9 +21,25 @@ const TIMEFRAMES = [
 export function Dashboard() {
   const [symbol, setSymbol]   = useState("AAPL");
   const [tfIdx, setTfIdx]     = useState(2); // default 1D
+  const [backendReady, setBackendReady] = useState(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
   const tf = TIMEFRAMES[tfIdx];
 
   const { candles, loading, error } = useCandles(symbol, tf.value, tf.limitDays);
+
+  // Health check on mount
+  useEffect(() => {
+    logger.info("Dashboard", "Dashboard mounted, checking backend health");
+    api.health()
+      .then((res) => {
+        logger.info("Dashboard", "Backend health check passed", res);
+        setBackendReady(true);
+      })
+      .catch((err) => {
+        logger.error("Dashboard", "Backend health check failed", err.message);
+        setBackendError(err.message);
+      });
+  }, []);
 
   const latestCandle = candles[candles.length - 1];
   const prevCandle   = candles[candles.length - 2];
@@ -36,11 +54,18 @@ export function Dashboard() {
 
   return (
     <div className="page">
+      {backendError && (
+        <div style={{ padding: "12px 16px", background: "#fee", border: "1px solid #f99", borderRadius: "4px", marginBottom: "12px", color: "#c33", fontSize: "13px" }}>
+          ⚠ Backend unavailable: {backendError}
+        </div>
+      )}
+
       <header className="page-header">
         <div>
           <h1 className="page-title">Market Overview</h1>
           <p className="page-sub">
             {candles.length > 0 ? `${candles.length} candles · ${dateRange}` : "Real-time price action & signal monitoring"}
+            {backendReady && <span style={{ marginLeft: "12px", color: "#0a0" }}>● Connected</span>}
           </p>
         </div>
         <div className="header-controls">

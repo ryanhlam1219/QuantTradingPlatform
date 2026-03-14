@@ -6,6 +6,7 @@ SELL when RSI crosses below the overbought threshold (default 70).
 
 Mean-reversion approach: assumes price will snap back after extremes.
 """
+from __future__ import annotations
 from datetime import timezone
 
 from app.strategies.base import BaseStrategy

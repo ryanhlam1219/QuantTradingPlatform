@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Query, HTTPException
-from app.models.candlestick import CandleSeries, TimeFrame, AssetClass, Broker
+from app.models.candlestick import CandleSeries, Timeframe, AssetClass, Broker
 
 router = APIRouter(prefix="/candles", tags=["candlesticks"])
 
@@ -22,7 +22,7 @@ def _get_broker(broker: Broker):
 async def get_candles(
     symbol: str,
     broker: Broker = Query(Broker.ALPACA),
-    timeframe: TimeFrame = Query(TimeFrame.ONE_DAY),
+    timeframe: Timeframe = Query(Timeframe.D1),
     asset_class: AssetClass = Query(AssetClass.STOCK),
     start: datetime = Query(..., description="Start datetime in UTC ISO 8601"),
     end: datetime = Query(..., description="End datetime in UTC ISO 8601"),
@@ -45,7 +45,7 @@ async def get_candles(
 async def get_latest_candles(
     symbol: str,
     broker: Broker = Query(Broker.ALPACA),
-    timeframe: TimeFrame = Query(TimeFrame.ONE_DAY),
+    timeframe: Timeframe = Query(Timeframe.D1),
     asset_class: AssetClass = Query(AssetClass.STOCK),
 ):
     """Fetch the most recent candles for a symbol (lookback window auto-determined)."""

@@ -31,12 +31,12 @@ export function SignalFeed({ symbol }: Props) {
   return (
     <div className="signal-feed">
       {signals.map((s, i) => (
-        <div key={i} className={`signal-item signal-item--${s.signal_type}`}>
+        <div key={i} className={`signal-item signal-item--${s.side}`}>
           <div className="signal-header">
-            <span className={`signal-badge badge--${s.signal_type}`}>{s.signal_type.toUpperCase()}</span>
-            <span className="signal-strategy">{s.strategy.replace(/_/g, " ")}</span>
+            <span className={`signal-badge badge--${s.side}`}>{s.side.toUpperCase()}</span>
+            <span className="signal-strategy">{s.strategy_name.replace(/_/g, " ")}</span>
           </div>
-          <div className="signal-price">${s.price.toFixed(2)}</div>
+          <div className="signal-reason">{s.reason}</div>
           <div className="signal-meta">
             <span className="signal-conf">Confidence: {(s.confidence * 100).toFixed(0)}%</span>
             <span className="signal-time">{new Date(s.timestamp).toLocaleDateString()}</span>

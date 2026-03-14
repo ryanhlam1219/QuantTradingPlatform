@@ -16,6 +16,9 @@ logs/
 *.log.*
 backend/cycle_state.json
 
+# ── Local roadmap (not part of source distribution)
+quantedge-roadmap.jsx
+
 # ── PID files (created by start.sh) ───────────────────────────────────────
 .backend.pid
 .frontend.pid
