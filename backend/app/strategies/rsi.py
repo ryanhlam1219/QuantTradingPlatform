@@ -101,7 +101,7 @@ class RSIStrategy(BaseStrategy):
 
             # Cross above oversold line → BUY
             if prev_rsi <= oversold and curr_rsi > oversold:
-                confidence = min((curr_rsi - oversold) / oversold, 1.0)
+                confidence = min((curr_rsi - oversold) / oversold, 1.0) if oversold != 0 else 0.5
                 signals.append(TradeSignal(
                     symbol=series.symbol,
                     side=OrderSide.BUY,
@@ -114,7 +114,7 @@ class RSIStrategy(BaseStrategy):
 
             # Cross below overbought line → SELL
             elif prev_rsi >= overbought and curr_rsi < overbought:
-                confidence = min((overbought - curr_rsi) / (100 - overbought), 1.0)
+                confidence = min((overbought - curr_rsi) / (100 - overbought), 1.0) if (100 - overbought) != 0 else 0.5
                 signals.append(TradeSignal(
                     symbol=series.symbol,
                     side=OrderSide.SELL,

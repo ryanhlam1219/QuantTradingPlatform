@@ -93,7 +93,7 @@ class BollingerBandsStrategy(BaseStrategy):
 
             # Price closes below lower band → oversold → BUY
             if price < l:
-                confidence = min(abs(price - l) / (u - l), 1.0)
+                confidence = min(abs(price - l) / (u - l), 1.0) if (u - l) != 0 else 0.8
                 signals.append(TradeSignal(
                     symbol=series.symbol,
                     side=OrderSide.BUY,
@@ -109,7 +109,7 @@ class BollingerBandsStrategy(BaseStrategy):
 
             # Price closes above upper band → overbought → SELL
             elif price > u:
-                confidence = min(abs(price - u) / (u - l), 1.0)
+                confidence = min(abs(price - u) / (u - l), 1.0) if (u - l) != 0 else 0.8
                 signals.append(TradeSignal(
                     symbol=series.symbol,
                     side=OrderSide.SELL,

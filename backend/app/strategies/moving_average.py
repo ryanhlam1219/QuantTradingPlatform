@@ -95,12 +95,13 @@ class MovingAverageCrossoverStrategy(BaseStrategy):
 
             # Golden cross: fast crosses above slow
             if prev_fast <= prev_slow and curr_fast > curr_slow:
+                confidence = min((curr_fast - curr_slow) / curr_slow * 100, 1.0) if curr_slow != 0 else 0.5
                 signals.append(
                     TradeSignal(
                         symbol=series.symbol,
                         side=OrderSide.BUY,
                         strategy_name=self.name,
-                        confidence=min((curr_fast - curr_slow) / curr_slow * 100, 1.0),
+                        confidence=confidence,
                         reason=f"{self.params['ma_type'].upper()}({fast}) crossed above {self.params['ma_type'].upper()}({slow})",
                         timestamp=ts,
                         metadata={"fast_ma": curr_fast, "slow_ma": curr_slow},
@@ -108,12 +109,13 @@ class MovingAverageCrossoverStrategy(BaseStrategy):
                 )
             # Death cross: fast crosses below slow
             elif prev_fast >= prev_slow and curr_fast < curr_slow:
+                confidence = min((curr_slow - curr_fast) / curr_slow * 100, 1.0) if curr_slow != 0 else 0.5
                 signals.append(
                     TradeSignal(
                         symbol=series.symbol,
                         side=OrderSide.SELL,
                         strategy_name=self.name,
-                        confidence=min((curr_slow - curr_fast) / curr_slow * 100, 1.0),
+                        confidence=confidence,
                         reason=f"{self.params['ma_type'].upper()}({fast}) crossed below {self.params['ma_type'].upper()}({slow})",
                         timestamp=ts,
                         metadata={"fast_ma": curr_fast, "slow_ma": curr_slow},
