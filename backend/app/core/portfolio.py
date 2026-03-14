@@ -360,7 +360,15 @@ def _validation_verdict(items: list[dict]) -> dict:
     positive_oos = sum(1 for i in valid if i["oos_return"] > 0)
     pos_pct = positive_oos / len(valid)
 
-    if avg_oos >= 0.5 and ratio >= 0.6 and pos_pct >= 0.5:
+    # If in-sample strategy failed (negative Sharpe), always NO_GO
+    if avg_is < 0:
+        verdict = "NO_GO"
+        summary = (
+            f"In-sample Sharpe ({avg_is:.2f}) is negative. "
+            "The strategy did not perform well on the training data. "
+            "Avoid executing without significant refinement."
+        )
+    elif avg_oos >= 0.5 and ratio >= 0.6 and pos_pct >= 0.5:
         verdict = "GO"
         summary = (
             f"Out-of-sample Sharpe ({avg_oos:.2f}) is {ratio*100:.0f}% of in-sample ({avg_is:.2f}). "
