@@ -44,7 +44,14 @@ port_in_use() { lsof -i ":$1" &>/dev/null 2>&1; }
 kill_on_port() {
   local pid
   pid=$(lsof -ti ":$1" 2>/dev/null)
-  [ -n "$pid" ] && kill "$pid" 2>/dev/null && return 0
+  if [ -n "$pid" ]; then
+    # Try graceful kill first
+    kill "$pid" 2>/dev/null
+    sleep 0.5
+    # Force kill if still running
+    kill -9 "$pid" 2>/dev/null
+    return 0
+  fi
   return 1
 }
 
@@ -52,7 +59,28 @@ kill_pid_file() {
   local file="$1"
   [ -f "$file" ] || return 0
   local pid; pid=$(cat "$file")
-  kill -0 "$pid" 2>/dev/null && kill "$pid" 2>/dev/null
+  
+  # Check if process exists
+  if ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$file"
+    return 0
+  fi
+  
+  # Try graceful shutdown first (SIGTERM)
+  kill "$pid" 2>/dev/null
+  
+  # Wait up to 2 seconds for graceful shutdown
+  local count=0
+  while kill -0 "$pid" 2>/dev/null && [ $count -lt 20 ]; do
+    sleep 0.1
+    count=$((count + 1))
+  done
+  
+  # Force kill if still running
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -9 "$pid" 2>/dev/null
+  fi
+  
   rm -f "$file"
 }
 
@@ -320,12 +348,21 @@ cmd_stop() {
   print_banner
   log_info "Stopping servers…"
 
-  kill_pid_file "$BACKEND_PID_FILE"  && log_success "Backend stopped" || true
-  kill_pid_file "$FRONTEND_PID_FILE" && log_success "Frontend stopped" || true
+  kill_pid_file "$BACKEND_PID_FILE"  && log_success "Backend stopped" || log_warn "Backend PID file not found"
+  kill_pid_file "$FRONTEND_PID_FILE" && log_success "Frontend stopped" || log_warn "Frontend PID file not found"
 
-  # Fallback: kill by port
-  kill_on_port $BACKEND_PORT  && log_success "Killed process on port $BACKEND_PORT"  || true
-  kill_on_port $FRONTEND_PORT && log_success "Killed process on port $FRONTEND_PORT" || true
+  # Fallback: kill by port with explicit force kill
+  if kill_on_port $BACKEND_PORT; then
+    log_success "Killed process on port $BACKEND_PORT"
+  fi
+  
+  if kill_on_port $FRONTEND_PORT; then
+    log_success "Killed process on port $FRONTEND_PORT"
+  fi
+  
+  # Additional safety: kill any remaining uvicorn/node processes
+  pkill -9 -f "uvicorn app.main" 2>/dev/null || true
+  pkill -9 -f "npm run dev" 2>/dev/null || true
 
   echo ""
   log_success "Done."
