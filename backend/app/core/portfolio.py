@@ -360,9 +360,9 @@ def _validation_verdict(items: list[dict]) -> dict:
     positive_oos = sum(1 for i in valid if i["oos_return"] > 0)
     pos_pct = positive_oos / len(valid)
 
-    # If in-sample strategy failed (negative Sharpe), always NO_GO
+    # If in-sample strategy failed (negative Sharpe), always REJECTED
     if avg_is < 0:
-        verdict = "NO_GO"
+        verdict = "REJECTED"
         summary = (
             f"In-sample Sharpe ({avg_is:.2f}) is negative. "
             "The strategy did not perform well on the training data. "
@@ -383,7 +383,7 @@ def _validation_verdict(items: list[dict]) -> dict:
             "Consider reducing position sizes or extending the evaluation period."
         )
     else:
-        verdict = "NO_GO"
+        verdict = "REJECTED"
         summary = (
             f"Out-of-sample Sharpe ({avg_oos:.2f}) does not support in-sample results ({avg_is:.2f}). "
             "The strategy does not appear to generalise to the hold-out period. "

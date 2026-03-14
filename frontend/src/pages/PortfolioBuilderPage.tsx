@@ -38,9 +38,9 @@ interface Props {
 }
 
 const GO_COLOR: Record<string, string> = {
-  GO:      "var(--green)",
-  CAUTION: "var(--orange)",
-  NO_GO:   "var(--red)",
+  GO:       "var(--green)",
+  CAUTION:  "var(--orange)",
+  REJECTED: "var(--red)",
 };
 
 export function PortfolioBuilderPage({ pendingItems = [], onPendingConsumed }: Props) {
