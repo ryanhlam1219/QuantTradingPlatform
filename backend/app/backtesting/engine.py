@@ -2,6 +2,7 @@
 Backtesting Engine.
 Simulates strategy execution against historical candlestick data.
 """
+import logging
 import numpy as np
 from datetime import datetime, timezone
 from typing import Optional
@@ -15,6 +16,8 @@ from app.backtesting.metrics import (
     calc_sharpe_ratio, calc_sortino_ratio, calc_max_drawdown,
     calc_annualized_return, calc_calmar_ratio, calc_profit_factor,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _to_utc(dt: datetime) -> datetime:
@@ -52,21 +55,33 @@ def _trade_signal_to_signal(ts: TradeSignal) -> Signal:
 
 class BacktestEngine:
     def run(self, config: BacktestConfig, series: CandleSeries) -> BacktestResult:
+        logger.info(f"Starting backtest: {config.symbol} / {config.strategy} ({len(series.candles)} candles)")
+        
         strategy = get_strategy(config.strategy, config.strategy_params)
         trade_signals = strategy.generate_signals(series)
+        logger.debug(f"Generated {len(trade_signals)} raw signals from {config.strategy}")
 
         # Normalise config dates to UTC so comparisons never throw TypeError
         start_utc = _to_utc(config.start_date)
         end_utc   = _to_utc(config.end_date)
 
         trade_signals = [s for s in trade_signals if start_utc <= _to_utc(s.timestamp) <= end_utc]
+        logger.debug(f"Filtered to {len(trade_signals)} signals within date range")
 
         trades = self._simulate_trades(trade_signals, series, config)
+        logger.debug(f"Completed {len(trades)} trades during simulation")
+        
         equity_curve = self._build_equity_curve(trades, series, config)
         metrics = self._calculate_metrics(trades, equity_curve, config)
 
         # Convert TradeSignal to Signal for backtest result
         signals = [_trade_signal_to_signal(ts) for ts in trade_signals]
+
+        logger.info(
+            f"Backtest complete: {config.symbol} / {config.strategy} | "
+            f"Return: {metrics['total_return']:.2%} | Trades: {metrics['total_trades']} | "
+            f"Win Rate: {metrics['win_rate']:.1%} | Sharpe: {metrics['sharpe_ratio']:.2f}"
+        )
 
         return BacktestResult(
             config=config,

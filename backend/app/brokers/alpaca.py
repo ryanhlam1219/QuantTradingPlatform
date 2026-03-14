@@ -7,6 +7,7 @@ Notes:
   - Paid accounts can use the SIP feed (feed=sip) for full market data.
   - The ALPACA_DATA_FEED env var controls this; defaults to "iex".
 """
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Any
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from app.brokers.base import BaseBroker
 from app.models.candlestick import Candle, CandleSeries, Timeframe, Broker, AssetClass
 from app.models.trade import Order
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -315,3 +318,35 @@ class AlpacaBroker(BaseBroker):
             )
             resp.raise_for_status()
             return True
+
+    async def validate_symbol(self, symbol: str) -> dict:
+        """Validate if a symbol exists and is tradeable. Returns asset info."""
+        symbol = symbol.upper()
+        logger.debug(f"Validating symbol: {symbol}")
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{settings.alpaca_base_url}/v2/assets/{symbol}",
+                    headers=self.headers,
+                    timeout=10.0,
+                )
+                if resp.status_code == 404:
+                    logger.warning(f"Symbol {symbol} not found in Alpaca")
+                    return {"valid": False, "reason": f"Symbol {symbol} not found"}
+                if resp.status_code == 403:
+                    logger.warning(f"No permission to trade {symbol}")
+                    return {"valid": False, "reason": f"Symbol {symbol} permission denied"}
+                resp.raise_for_status()
+                data = resp.json()
+                is_valid = data.get("tradable", False)
+                logger.info(f"Symbol {symbol} validation: tradable={is_valid}, class={data.get('class')}, exchange={data.get('exchange')}")
+                return {
+                    "valid": is_valid,
+                    "symbol": data.get("symbol"),
+                    "class": data.get("class"),
+                    "exchange": data.get("exchange"),
+                    "reason": None if is_valid else f"Symbol {symbol} is not tradable",
+                }
+        except Exception as e:
+            logger.error(f"Error validating symbol {symbol}: {str(e)}")
+            return {"valid": False, "reason": f"Error validating symbol: {str(e)}"}
