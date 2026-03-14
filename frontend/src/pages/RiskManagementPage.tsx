@@ -30,6 +30,7 @@ export function RiskManagementPage() {
   const [tab, setTab] = useState<Tab>("sizer");
 
   // ── Position Sizer state ──────────────────────────────────────────────────
+  const [symbol,          setSymbol]          = useState("AAPL");
   const [capital,         setCapital]         = useState(10000);
   const [entryPrice,      setEntryPrice]      = useState(100);
   const [stopLossPct,     setStopLossPct]     = useState(5);    // shown as %
@@ -47,6 +48,7 @@ export function RiskManagementPage() {
     setSizerResult(null);
     try {
       const req: any = {
+        symbol: symbol.toUpperCase(),
         capital,
         entry_price:        entryPrice,
         stop_loss_pct:      stopLossPct / 100,
@@ -75,12 +77,15 @@ export function RiskManagementPage() {
 
   function addHolding() {
     setHoldings(prev => [...prev, { id: Date.now(), symbol: "", qty: "", entry_price: "" }]);
+    setRiskResult(null);  // Clear results when holdings change
   }
   function removeHolding(id: number) {
     setHoldings(prev => prev.filter(h => h.id !== id));
+    setRiskResult(null);  // Clear results when holdings change
   }
   function updateHolding(id: number, field: keyof HoldingRow, value: string) {
     setHoldings(prev => prev.map(h => h.id === id ? { ...h, [field]: value } : h));
+    setRiskResult(null);  // Clear results when holdings change
   }
 
   async function analyzePortfolio() {
@@ -132,6 +137,12 @@ export function RiskManagementPage() {
             <h3 style={{ marginBottom: "16px", fontSize: "15px" }}>Trade Parameters</h3>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "14px", marginBottom: "16px" }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Symbol</label>
+                <input className="input" type="text"
+                  placeholder="e.g., AAPL"
+                  value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} />
+              </div>
               <div className="form-group" style={{ margin: 0 }}>
                 <label>Account Capital ($)</label>
                 <input className="input" type="number" min={100}
@@ -283,7 +294,10 @@ export function RiskManagementPage() {
               <div className="form-group" style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
                 <label style={{ fontSize: "13px", whiteSpace: "nowrap" }}>Lookback (days)</label>
                 <input className="input" type="number" min={30} max={756} style={{ width: "80px" }}
-                  value={lookbackDays} onChange={e => setLookbackDays(parseInt(e.target.value) || 252)} />
+                  value={lookbackDays} onChange={e => {
+                    setLookbackDays(parseInt(e.target.value) || 252);
+                    setRiskResult(null);  // Clear results when lookback changes
+                  }} />
               </div>
               <button className="btn-primary" onClick={analyzePortfolio} disabled={riskLoading}
                 style={{ fontSize: "13px" }}>

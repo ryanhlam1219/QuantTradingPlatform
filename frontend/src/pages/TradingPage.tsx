@@ -275,9 +275,14 @@ export function TradingPage() {
 
             <div className="form-group">
               <label>Symbol</label>
-              <select className="select" value={algoForm.symbol} onChange={e => setAlgoForm(f=>({...f,symbol:e.target.value}))}>
-                {SYMBOLS.map(s => <option key={s}>{s}</option>)}
-              </select>
+              <input 
+                type="text" 
+                className="input" 
+                placeholder="e.g., AAPL, BTC/USD" 
+                value={algoForm.symbol} 
+                onChange={e => setAlgoForm(f=>({...f,symbol:e.target.value.toUpperCase()}))} 
+              />
+              <div style={{fontSize:"11px",color:"#a0aec0",marginTop:"4px"}}>Type any valid stock or crypto symbol</div>
             </div>
             <div className="form-group">
               <label>Strategy</label>
