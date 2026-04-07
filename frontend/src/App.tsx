@@ -10,10 +10,11 @@ import { ResearchPage } from "./pages/ResearchPage";
 import { PortfolioBuilderPage } from "./pages/PortfolioBuilderPage";
 import { AutoTraderPage } from "./pages/AutoTraderPage";
 import { RiskManagementPage } from "./pages/RiskManagementPage";
+import { ExchangeComparisonPage } from "./pages/ExchangeComparisonPage";
 
 export type Page =
   | "dashboard" | "backtest" | "algorithms" | "trading" | "guide"
-  | "screener"  | "research" | "portfolio" | "autotrader" | "risk";
+  | "screener"  | "research" | "portfolio" | "autotrader" | "risk" | "exchange-comparison";
 
 /**
  * Pages that should stay mounted once first visited (CSS-hidden when inactive).
@@ -93,6 +94,7 @@ export default function App() {
       case "trading":    return <TradingPage />;
       case "guide":      return <GuidePage />;
       case "risk":       return <RiskManagementPage />;
+      case "exchange-comparison": return <ExchangeComparisonPage />;
       default:           return null;
     }
   };
