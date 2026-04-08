@@ -3,7 +3,9 @@ import { Timeframe } from '../../types/Timeframe';
 
 export class BinanceWSClient {
   private ws: WebSocket | null = null;
-  private url = 'wss://stream.binance.us:9443/ws';
+  // Note: Using binance.com instead of binance.us - .us may not have kline data
+  // If you need .us specifically, you may need to use REST API + polling instead
+  private url = 'wss://stream.binance.com:9443/ws';
   private symbol: string | null = null;
   private streamName: string | null = null;
   private onCandleCallback: ((candle: NormalizedCandle) => void) | null = null;
@@ -39,7 +41,17 @@ export class BinanceWSClient {
           console.log(`[Binance] ⏱️ OPEN timestamp: ${openTime} (${openTime - connectTime}ms after attempt)`);
           console.log(`[Binance] 🔍 WebSocket state: ${this.ws?.readyState} (OPEN=1)`);
           console.log(`[Binance] 🔍 Connected to stream: ${this.streamName}`);
+          console.log(`[Binance] 🔍 Full URL used: ${wsUrl}`);
           this.reconnectAttempts = 0;
+
+          // Try sending a ping to confirm bidirectional communication
+          try {
+            console.log(`[Binance] 📤 Attempting to send test ping...`);
+            this.ws!.send(JSON.stringify({ method: 'ping' }));
+            console.log(`[Binance] ✅ Ping sent`);
+          } catch (pingErr) {
+            console.error(`[Binance] ❌ Failed to send ping:`, pingErr);
+          }
 
           // Set up a heartbeat monitor to check if connection is alive
           const heartbeatInterval = setInterval(() => {
