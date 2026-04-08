@@ -16,8 +16,8 @@ export function ExchangeComparisonPage() {
   const [timeframe, setTimeframe] = useState<Timeframe>(Timeframe.M1);
   const [enabledExchanges, setEnabledExchanges] = useState<Record<string, boolean>>({
     binance: true,
-    kraken: true,
-    gemini: true,
+    kraken: false,
+    gemini: false,
   });
 
   const [candles, setCandles] = useState<ExchangeCandles>({
