@@ -20,10 +20,13 @@ export class BinanceWSClient {
    * @param onCandle - Callback fired when a 1m candle closes
    */
   async connect(symbol: string, onCandle: (candle: NormalizedCandle) => void): Promise<void> {
-    console.log(`[Binance US] 🔌🔌🔌 CONNECT CALLED FOR: ${symbol}`);
     this.symbol = symbol;
     this.onCandleCallback = onCandle;
+
+    // Try Binance US market data stream format (may require different stream name)
+    // Format 1: symbol@klines_1m (standard Binance format)
     this.streamName = `${symbol.toLowerCase()}@klines_1m`;
+
     this.isIntentionallyClosed = false;
     this.reconnectAttempts = 0;
     this.messageCount = 0;
@@ -31,17 +34,29 @@ export class BinanceWSClient {
     return new Promise((resolve, reject) => {
       try {
         const wsUrl = `${this.url}/${this.streamName}`;
-        console.log(`[Binance US] 🔌 Attempting WebSocket connection to: ${wsUrl}`);
-        console.log(`[Binance US] 📍 URL parts: base=${this.url}, stream=${this.streamName}`);
+        console.log(`[Binance US] 🔌 Attempting connection: ${wsUrl}`);
         this.ws = new WebSocket(wsUrl);
-        console.log(`[Binance US] 📝 WebSocket object created`);
+        console.log(`[Binance US] 📝 WebSocket created, waiting for OPEN...`);
 
         this.ws.onopen = () => {
-          console.log(`[Binance US] ✅ WebSocket OPEN for ${symbol}`);
-          console.log(`[Binance US] ℹ️ Stream: ${this.streamName}`);
-          console.log(`[Binance US] ℹ️ Full URL: ${wsUrl}`);
-          console.log(`[Binance US] 🎧 Listening for kline data...`);
-          console.log(`[Binance US] ⚠️ If no messages appear, stream name format may be wrong for Binance US`);
+          console.log(`[Binance US] ✅ WebSocket OPEN`);
+          console.log(`[Binance US] 📤 Sending subscription message...`);
+
+          // Send subscription message to explicitly subscribe to the stream
+          const subscriptionMsg = {
+            method: 'SUBSCRIBE',
+            params: [this.streamName],
+            id: 1
+          };
+
+          try {
+            this.ws!.send(JSON.stringify(subscriptionMsg));
+            console.log(`[Binance US] ✅ Subscription sent for stream: ${this.streamName}`);
+          } catch (err) {
+            console.error(`[Binance US] ❌ Failed to send subscription:`, err);
+          }
+
+          console.log(`[Binance US] 🎧 Waiting for kline data...`);
           this.reconnectAttempts = 0;
 
           // Heartbeat to confirm connection is alive
