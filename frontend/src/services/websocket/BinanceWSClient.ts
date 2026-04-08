@@ -37,10 +37,13 @@ export class BinanceWSClient {
           console.log(`[Binance US] 📤 Subscribing to klines for ${symbol}...`);
 
           // Send subscription request using Binance US API format
+          // params must be an object, not an array
           const subscribeRequest = {
             id: this.requestId++,
             method: 'stream.subscribe',
-            params: [`${symbol.toLowerCase()}@kline_1m`]
+            params: {
+              streams: [`${symbol.toLowerCase()}@kline_1m`]
+            }
           };
 
           try {
