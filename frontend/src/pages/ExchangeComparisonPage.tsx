@@ -167,8 +167,8 @@ export function ExchangeComparisonPage() {
       </div>
 
       {/* Debug Info */}
-      <div style={{ padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', marginBottom: '20px', fontSize: '12px', fontFamily: 'monospace' }}>
-        <strong>🔍 Debug:</strong> Binance candles in state: {candles.binance.length} | Kraken: {candles.kraken.length} | Gemini: {candles.gemini.length}
+      <div style={{ padding: '12px', backgroundColor: '#1e3a8a', borderRadius: '6px', marginBottom: '20px', fontSize: '14px', fontFamily: 'monospace', color: '#00ff00', fontWeight: 'bold', border: '2px solid #00ff00' }}>
+        🔍 DEBUG: Binance candles in state: <span style={{ color: '#ffff00' }}>{candles.binance.length}</span> | Kraken: <span style={{ color: '#ffff00' }}>{candles.kraken.length}</span> | Gemini: <span style={{ color: '#ffff00' }}>{candles.gemini.length}</span>
       </div>
 
       {/* Exchange toggles */}
