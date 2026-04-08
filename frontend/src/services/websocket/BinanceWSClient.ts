@@ -12,6 +12,7 @@ export class BinanceWSClient {
   private maxReconnectAttempts = 10;
   private reconnectDelay = 5000; // 5 seconds
   private isIntentionallyClosed = false;
+  private messageCount = 0;
 
   /**
    * Connect and subscribe to 1-minute kline stream for a symbol.
@@ -24,6 +25,7 @@ export class BinanceWSClient {
     this.streamName = `${symbol.toLowerCase()}@klines_1m`;
     this.isIntentionallyClosed = false;
     this.reconnectAttempts = 0;
+    this.messageCount = 0;
 
     return new Promise((resolve, reject) => {
       try {
@@ -59,8 +61,10 @@ export class BinanceWSClient {
 
         this.ws.onmessage = (event: MessageEvent) => {
           try {
+            this.messageCount++;
             const msgTime = Date.now();
-            console.log(`[Binance US] 📨 Message received at ${msgTime} (size: ${event.data.length} bytes)`);
+            console.log(`[Binance US] 📨 Message #${this.messageCount} received at ${msgTime} (size: ${event.data.length} bytes)`);
+            console.log(`[Binance US] 📋 Raw message data:`, event.data.substring(0, 200)); // First 200 chars
             const message: BinanceKlineMessage = JSON.parse(event.data);
             console.log(`[Binance US] ✔️ Parsed message. Symbol=${message.s}, isClosed(k.x)=${message.k.x}`);
             console.log(`[Binance US] 🔍 onCandleCallback exists?`, this.onCandleCallback !== null);
@@ -108,6 +112,8 @@ export class BinanceWSClient {
         };
 
         console.log(`[Binance US] ✅ Event handlers attached (onopen, onmessage, onerror, onclose)`);
+        console.log(`[Binance US] 🔔 Ready to receive messages on stream: ${this.streamName}`);
+        console.log(`[Binance US] ⏳ Waiting for data... (may take a few seconds for first message)`);
       } catch (err) {
         console.error('[Binance US] ❌ Connection setup error:', err);
         reject(err);
