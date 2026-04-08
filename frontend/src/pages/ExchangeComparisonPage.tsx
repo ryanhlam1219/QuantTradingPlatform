@@ -60,9 +60,12 @@ export function ExchangeComparisonPage() {
   // Connect to exchanges when symbol or enabledExchanges change
   useEffect(() => {
     const connectExchanges = async () => {
+      console.log(`[ExchangeComparison] 🔄 Connecting to exchanges...`, enabledExchanges);
+
       // Disconnect all first
       Object.entries(clients).forEach(([ex, client]) => {
         if (client.isConnected?.()) {
+          console.log(`[ExchangeComparison] Disconnecting ${ex}`);
           client.disconnect();
           setStatus((prev) => ({ ...prev, [ex]: 'disconnected' }));
         }
@@ -87,10 +90,13 @@ export function ExchangeComparisonPage() {
             }
 
             const exchangeKey = ex as keyof ExchangeCandles;
-            await clients[exchangeKey].connect(exchangeSymbol, handleCandle(exchangeKey));
+            const callback = handleCandle(exchangeKey);
+            console.log(`[ExchangeComparison] 🎯 Connecting ${ex} with symbol: ${exchangeSymbol}. Callback: ${typeof callback}`);
+            await clients[exchangeKey].connect(exchangeSymbol, callback);
             setStatus((prev) => ({ ...prev, [exchangeKey]: 'connected' }));
+            console.log(`[ExchangeComparison] ✅ ${ex} connected successfully`);
           } catch (err) {
-            console.error(`Failed to connect ${ex}:`, err);
+            console.error(`[ExchangeComparison] Failed to connect ${ex}:`, err);
             setStatus((prev) => ({ ...prev, [ex]: 'error' }));
           }
         }

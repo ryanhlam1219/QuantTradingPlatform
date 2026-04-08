@@ -34,10 +34,17 @@ export class BinanceWSClient {
         this.ws.onmessage = (event: MessageEvent) => {
           try {
             const message: BinanceKlineMessage = JSON.parse(event.data);
+            console.log(`[Binance WS] Message received. Closed: ${message.k.x}, Symbol: ${message.s}`);
+
             // Only emit if candle is closed (x: true)
             if (message.k.x) {
+              console.log(`[Binance WS] 🎯 CANDLE CLOSED - Processing...`);
               const candle = this.parseKline(message, symbol);
+              console.log(`[Binance WS] 📤 Calling callback with candle:`, candle);
               this.onCandleCallback?.(candle);
+              console.log(`[Binance WS] ✅ Callback executed`);
+            } else {
+              console.log(`[Binance WS] ⏳ Candle still open (will wait for close)`);
             }
           } catch (err) {
             console.error('Binance WS message parse error:', err);
