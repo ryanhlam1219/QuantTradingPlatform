@@ -74,9 +74,10 @@ export function ExchangeComparisonPage() {
       // Clear candles
       setCandles({ binance: [], kraken: [], gemini: [] });
 
-      // Connect enabled exchanges
-      for (const [ex, enabled] of Object.entries(enabledExchanges)) {
-        if (enabled && (ex === 'binance' || ex === 'kraken' || ex === 'gemini')) {
+      // Connect enabled exchanges in parallel
+      const connectionPromises = Object.entries(enabledExchanges)
+        .filter(([ex, enabled]) => enabled && (ex === 'binance' || ex === 'kraken' || ex === 'gemini'))
+        .map(async ([ex, _]) => {
           setStatus((prev) => ({ ...prev, [ex]: 'connecting' }));
           try {
             // Map symbol format: BTCUSD -> BTCUSDT (Binance), XBT/USD (Kraken), btcusd (Gemini)
@@ -99,8 +100,10 @@ export function ExchangeComparisonPage() {
             console.error(`[ExchangeComparison] Failed to connect ${ex}:`, err);
             setStatus((prev) => ({ ...prev, [ex]: 'error' }));
           }
-        }
-      }
+        });
+
+      // Wait for all connections in parallel
+      await Promise.all(connectionPromises);
     };
 
     connectExchanges();
