@@ -28,18 +28,36 @@ export class BinanceWSClient {
       try {
         const wsUrl = `${this.url}/${this.streamName}`;
         console.log(`[Binance] 🔌 Attempting to connect to: ${wsUrl}`);
+        const connectTime = Date.now();
+        console.log(`[Binance] ⏱️ Connection attempt timestamp: ${connectTime}`);
         this.ws = new WebSocket(wsUrl);
+        console.log(`[Binance] 📝 WebSocket object created`);
 
         this.ws.onopen = () => {
+          const openTime = Date.now();
           console.log(`[Binance] ✅ WebSocket OPEN - Connection established for ${symbol}`);
+          console.log(`[Binance] ⏱️ OPEN timestamp: ${openTime} (${openTime - connectTime}ms after attempt)`);
           console.log(`[Binance] 🔍 WebSocket state: ${this.ws?.readyState} (OPEN=1)`);
+          console.log(`[Binance] 🔍 Connected to stream: ${this.streamName}`);
           this.reconnectAttempts = 0;
+
+          // Set up a heartbeat monitor to check if connection is alive
+          const heartbeatInterval = setInterval(() => {
+            if (this.ws?.readyState === WebSocket.OPEN) {
+              console.log(`[Binance] 💓 Heartbeat check - Connection ALIVE (${new Date().toLocaleTimeString()})`);
+            } else if (this.ws?.readyState === WebSocket.CLOSED) {
+              console.log(`[Binance] 💀 Heartbeat check - Connection CLOSED`);
+              clearInterval(heartbeatInterval);
+            }
+          }, 10000); // Every 10 seconds
+
           resolve();
         };
 
         this.ws.onmessage = (event: MessageEvent) => {
           try {
-            console.log(`[Binance] 📨 Message received (size: ${event.data.length} bytes)`);
+            const msgTime = Date.now();
+            console.log(`[Binance] 📨 Message received at ${msgTime} (size: ${event.data.length} bytes)`);
             const message: BinanceKlineMessage = JSON.parse(event.data);
             console.log(`[Binance] ✔️ Parsed message. Symbol=${message.s}, isClosed(k.x)=${message.k.x}`);
             console.log(`[Binance] 🔍 onCandleCallback exists?`, this.onCandleCallback !== null);
@@ -76,10 +94,15 @@ export class BinanceWSClient {
         };
 
         this.ws.onclose = (event: CloseEvent) => {
-          console.log(`[Binance] ❌ WebSocket CLOSED - Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
+          const closeTime = Date.now();
+          console.log(`[Binance] ❌ WebSocket CLOSED at ${closeTime}`);
+          console.log(`[Binance] 📊 Close event - Code: ${event.code}, Reason: ${event.reason || '(no reason)'}, Clean: ${event.wasClean}`);
           console.log(`[Binance] 🔍 WebSocket state: ${this.ws?.readyState} (CLOSED=3)`);
+          console.log(`[Binance] ℹ️ Common close codes: 1000=normal, 1001=going away, 1002=protocol error, 1006=abnormal`);
           this.attemptReconnect();
         };
+
+        console.log(`[Binance] ✅ Event handlers attached (onopen, onmessage, onerror, onclose)`);
       } catch (err) {
         console.error('[Binance] ❌ Connection setup error:', err);
         reject(err);
