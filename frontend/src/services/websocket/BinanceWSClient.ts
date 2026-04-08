@@ -1,98 +1,140 @@
-import { NormalizedCandle } from '../../types/ExchangeComparison';
+import { NormalizedCandle, BinanceKlineMessage } from '../../types/ExchangeComparison';
 import { Timeframe } from '../../types/Timeframe';
 
 export class BinanceWSClient {
-  // Using REST API polling instead of websocket since WS doesn't stream data
+  private ws: WebSocket | null = null;
+  // Binance US websocket - use unauthenticated data stream
+  private url = 'wss://stream.binance.us:9443/ws';
   private symbol: string | null = null;
+  private streamName: string | null = null;
   private onCandleCallback: ((candle: NormalizedCandle) => void) | null = null;
-  private pollInterval: NodeJS.Timeout | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
+  private reconnectDelay = 5000;
   private isIntentionallyClosed = false;
-  private lastCandleTime = 0;
-  private apiUrl = 'https://api.binance.us/api/v3';
+  private messageCount = 0;
 
   /**
-   * Connect and fetch 1-minute kline data for a symbol via REST API polling.
+   * Connect and subscribe to 1-minute kline stream for a symbol.
    * @param symbol - e.g., "BTCUSDT" or "ETHUSDT"
-   * @param onCandle - Callback fired when new kline data is available
+   * @param onCandle - Callback fired when a 1m candle closes
    */
   async connect(symbol: string, onCandle: (candle: NormalizedCandle) => void): Promise<void> {
     this.symbol = symbol;
     this.onCandleCallback = onCandle;
+    this.streamName = `${symbol.toLowerCase()}@klines_1m`;
     this.isIntentionallyClosed = false;
-    this.lastCandleTime = 0;
+    this.reconnectAttempts = 0;
+    this.messageCount = 0;
 
-    console.log(`[Binance US] 🔌 Connecting via REST API polling for ${symbol}`);
+    return new Promise((resolve, reject) => {
+      try {
+        const wsUrl = `${this.url}/${this.streamName}`;
+        console.log(`[Binance US] 🔌 Attempting WebSocket connection to: ${wsUrl}`);
+        this.ws = new WebSocket(wsUrl);
 
-    try {
-      // Fetch initial candle to verify API works
-      await this.fetchAndEmitCandle(symbol);
-      console.log(`[Binance US] ✅ Connected - polling for klines every 1 second`);
+        this.ws.onopen = () => {
+          console.log(`[Binance US] ✅ WebSocket OPEN for ${symbol}`);
+          console.log(`[Binance US] ℹ️ Stream: ${this.streamName}`);
+          console.log(`[Binance US] 🎧 Listening for kline data...`);
+          this.reconnectAttempts = 0;
 
-      // Poll for new klines every 1 second
-      this.pollInterval = setInterval(async () => {
-        if (!this.isIntentionallyClosed && this.symbol && this.onCandleCallback) {
+          // Heartbeat to confirm connection is alive
+          const heartbeatInterval = setInterval(() => {
+            if (this.ws?.readyState === WebSocket.OPEN) {
+              console.log(`[Binance US] 💓 Connection alive`);
+            } else {
+              clearInterval(heartbeatInterval);
+            }
+          }, 15000);
+
+          resolve();
+        };
+
+        this.ws.onmessage = (event: MessageEvent) => {
           try {
-            await this.fetchAndEmitCandle(this.symbol);
+            this.messageCount++;
+            console.log(`[Binance US] 📨 Message #${this.messageCount} received (${event.data.length} bytes)`);
+
+            const message: BinanceKlineMessage = JSON.parse(event.data);
+
+            if (message.k && message.k.x) {
+              console.log(`[Binance US] 🎯 Candle closed - O: ${message.k.o}, H: ${message.k.h}, L: ${message.k.l}, C: ${message.k.c}, V: ${message.k.v}`);
+
+              const candle = this.parseKline(message, symbol);
+
+              if (this.onCandleCallback) {
+                this.onCandleCallback(candle);
+                console.log(`[Binance US] ✅ Candle emitted to UI`);
+              }
+            } else if (message.k) {
+              console.log(`[Binance US] ⏳ Candle open - C: ${message.k.c}`);
+            }
           } catch (err) {
-            console.error(`[Binance US] ❌ Polling error:`, err);
+            console.error('[Binance US] ❌ Error processing message:', err);
           }
-        }
-      }, 1000);
-    } catch (err) {
-      console.error(`[Binance US] ❌ Connection error:`, err);
-      throw err;
-    }
+        };
+
+        this.ws.onerror = (err: Event) => {
+          console.error('[Binance US] ❌ WebSocket error:', err);
+          reject(err);
+        };
+
+        this.ws.onclose = (event: CloseEvent) => {
+          console.log(`[Binance US] ❌ WebSocket closed - Code: ${event.code}`);
+          this.attemptReconnect();
+        };
+      } catch (err) {
+        console.error('[Binance US] ❌ Setup error:', err);
+        reject(err);
+      }
+    });
   }
 
   /**
-   * Fetch latest kline data from Binance US REST API and emit if new.
+   * Parse Binance kline message into normalized Candle.
    */
-  private async fetchAndEmitCandle(symbol: string): Promise<void> {
-    try {
-      const url = `${this.apiUrl}/klines?symbol=${symbol}&interval=1m&limit=1`;
-      const response = await fetch(url);
+  private parseKline(message: BinanceKlineMessage, symbol: string): NormalizedCandle {
+    const k = message.k;
+    return {
+      symbol,
+      open: parseFloat(k.o),
+      high: parseFloat(k.h),
+      low: parseFloat(k.l),
+      close: parseFloat(k.c),
+      volume: parseFloat(k.v),
+      timestamp: new Date(k.T),
+      timeframe: Timeframe.M1,
+      broker: 'binance',
+      assetClass: 'crypto',
+    };
+  }
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      if (!Array.isArray(data) || data.length === 0) {
-        console.error(`[Binance US] ❌ Invalid response from API`);
-        return;
-      }
-
-      const kline = data[0];
-      const [time, open, high, low, close, volume, closeTime, quoteAssetVolume, trades, takerBuyBaseVolume, takerBuyQuoteVolume, ignore] = kline;
-
-      // Only emit if we haven't seen this candle before
-      if (time > this.lastCandleTime) {
-        this.lastCandleTime = time;
-
-        const candle: NormalizedCandle = {
-          symbol,
-          open: parseFloat(open),
-          high: parseFloat(high),
-          low: parseFloat(low),
-          close: parseFloat(close),
-          volume: parseFloat(volume),
-          timestamp: new Date(time),
-          timeframe: Timeframe.M1,
-          broker: 'binance',
-          assetClass: 'crypto',
-        };
-
-        console.log(`[Binance US] 📊 Kline fetched - O: ${candle.open}, H: ${candle.high}, L: ${candle.low}, C: ${candle.close}, V: ${candle.volume}`);
-
-        if (this.onCandleCallback) {
-          this.onCandleCallback(candle);
-          console.log(`[Binance US] 📤 Candle emitted to UI`);
-        }
-      }
-    } catch (err) {
-      console.error(`[Binance US] ❌ Fetch error:`, err);
+  /**
+   * Attempt to reconnect with exponential backoff.
+   */
+  private attemptReconnect(): void {
+    if (this.isIntentionallyClosed) {
+      console.log(`[Binance US] ℹ️ Skipping reconnect - intentionally closed`);
+      return;
     }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error(`[Binance US] ❌ Max reconnect attempts (${this.maxReconnectAttempts}) reached`);
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 60000);
+    console.log(`[Binance US] 🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+
+    setTimeout(() => {
+      if (this.symbol && this.onCandleCallback && !this.isIntentionallyClosed) {
+        this.connect(this.symbol, this.onCandleCallback).catch((err) => {
+          console.error('[Binance US] ❌ Reconnect failed:', err);
+        });
+      }
+    }, delay);
   }
 
   /**
@@ -101,9 +143,9 @@ export class BinanceWSClient {
   disconnect(): void {
     console.log(`[Binance US] 🔌 Disconnect called`);
     this.isIntentionallyClosed = true;
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
     }
     this.onCandleCallback = null;
     this.symbol = null;
@@ -113,6 +155,6 @@ export class BinanceWSClient {
    * Get connection status.
    */
   isConnected(): boolean {
-    return !this.isIntentionallyClosed && this.pollInterval !== null;
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 }
