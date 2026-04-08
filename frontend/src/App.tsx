@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Dashboard } from "./pages/Dashboard";
@@ -53,6 +53,13 @@ function AppContent() {
     }
     return "dashboard";
   }, [location.pathname]);
+
+  // Ensure current page is mounted if it's a keep-alive page
+  useEffect(() => {
+    if (KEEP_ALIVE_PAGES.has(currentPage)) {
+      setMounted(prev => new Set([...prev, currentPage]));
+    }
+  }, [currentPage]);
 
   const [pendingResearchSymbols, setPendingResearchSymbols] = useState<string[]>([]);
   const [pendingPortfolioItems,  setPendingPortfolioItems]  = useState<
