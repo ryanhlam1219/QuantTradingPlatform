@@ -23,8 +23,15 @@ export class BinanceWSClient {
     this.symbol = symbol;
     this.onCandleCallback = onCandle;
 
-    // Try Binance US market data stream format (may require different stream name)
-    // Format 1: symbol@klines_1m (standard Binance format)
+    // Binance US may use different stream format or name
+    // Try multiple formats in order of likelihood
+    const streamFormats = [
+      `${symbol.toLowerCase()}@kline_1m`,  // Format 1: with underscore instead of @
+      `${symbol.toLowerCase()}@aggTrade`,  // Format 2: aggregate trades (fallback)
+      `${symbol.toLowerCase()}@trade`,     // Format 3: raw trades
+    ];
+
+    // Start with klines_1m
     this.streamName = `${symbol.toLowerCase()}@klines_1m`;
 
     this.isIntentionallyClosed = false;
@@ -73,19 +80,23 @@ export class BinanceWSClient {
 
         this.ws.onmessage = (event: MessageEvent) => {
           this.messageCount++;
-          console.log(`[Binance US] 📨 Message #${this.messageCount} (${event.data.length} bytes): ${event.data.substring(0, 100)}`);
+          console.log(`[Binance US] 📨 Message #${this.messageCount} (${event.data.length} bytes)`);
+          console.log(`[Binance US] 📄 Content: ${event.data}`);
 
           try {
-            const message: BinanceKlineMessage = JSON.parse(event.data);
+            const message: any = JSON.parse(event.data);
+            console.log(`[Binance US] 🔍 Parsed:`, message);
 
             // Check if it's a subscription confirmation or result
-            if (message.result === null && message.id) {
-              console.log(`[Binance US] ✅ Subscription confirmed (ID: ${message.id})`);
+            if ((message.result === null || message.status) && message.id) {
+              console.log(`[Binance US] ✅ Subscription response received`);
+              console.log(`[Binance US] ⚠️ No kline data streaming. Binance US may not support kline websockets.`);
               return;
             }
 
             // Check if it's actual kline data
             if (message.k) {
+              console.log(`[Binance US] ✅ Kline data received!`);
               if (message.k.x) {
                 console.log(`[Binance US] 🎯 CANDLE CLOSED`);
                 console.log(`[Binance US] 📊 O: ${message.k.o}, H: ${message.k.h}, L: ${message.k.l}, C: ${message.k.c}, V: ${message.k.v}`);
@@ -100,7 +111,8 @@ export class BinanceWSClient {
                 console.log(`[Binance US] ⏳ Candle building - C: ${message.k.c}`);
               }
             } else {
-              console.log(`[Binance US] 📋 Other message:`, message);
+              console.log(`[Binance US] 🟡 Unexpected message type - not a kline`);
+              console.log(`[Binance US] Keys in message:`, Object.keys(message));
             }
           } catch (err) {
             console.error('[Binance US] ❌ Error processing message:', err);
