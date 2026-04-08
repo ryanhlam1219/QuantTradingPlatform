@@ -38,22 +38,29 @@ export class BinanceWSClient {
           try {
             console.log(`[Binance] 📨 Message received (size: ${event.data.length} bytes)`);
             const message: BinanceKlineMessage = JSON.parse(event.data);
-            console.log(`[Binance] ✔️ Parsed message. k.x=${message.k.x}, Symbol=${message.s}`);
+            console.log(`[Binance] ✔️ Parsed message. Symbol=${message.s}, isClosed(k.x)=${message.k.x}`);
             console.log(`[Binance] 🔍 onCandleCallback exists?`, this.onCandleCallback !== null);
+            console.log(`[Binance] 🔍 this.symbol=`, this.symbol);
 
             // Only emit if candle is closed (x: true)
             if (message.k.x) {
-              console.log(`[Binance] 🎯 CANDLE CLOSED - Processing...`);
-              const candle = this.parseKline(message, symbol);
-              console.log(`[Binance] 📤 Calling callback with candle:`, candle);
-              if (this.onCandleCallback) {
-                this.onCandleCallback(candle);
-                console.log(`[Binance] ✅ Callback executed successfully`);
-              } else {
-                console.error(`[Binance] ❌ onCandleCallback is null!`);
+              console.log(`[Binance] 🎯 CANDLE CLOSED - message.k.x is TRUE, proceeding to parse`);
+              try {
+                const candle = this.parseKline(message, symbol);
+                console.log(`[Binance] ✔️ Candle parsed successfully:`, candle);
+                console.log(`[Binance] 📤 About to call callback. Callback is:`, typeof this.onCandleCallback);
+                if (this.onCandleCallback) {
+                  console.log(`[Binance] ▶️ Calling callback NOW...`);
+                  this.onCandleCallback(candle);
+                  console.log(`[Binance] ✅ Callback executed successfully`);
+                } else {
+                  console.error(`[Binance] ❌ onCandleCallback is null! Cannot call.`);
+                }
+              } catch (parseErr) {
+                console.error(`[Binance] ❌ Error parsing candle:`, parseErr);
               }
             } else {
-              console.log(`[Binance] ⏳ Candle still open (will wait for close)`);
+              console.log(`[Binance] ⏳ Candle still open (message.k.x=${message.k.x}, will wait for close)`);
             }
           } catch (err) {
             console.error('[Binance] ❌ Message parse error:', err);

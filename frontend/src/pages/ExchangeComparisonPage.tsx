@@ -62,10 +62,11 @@ export function ExchangeComparisonPage() {
     const connectExchanges = async () => {
       console.log(`[ExchangeComparison] 🔄 Connecting to exchanges...`, enabledExchanges);
 
-      // Disconnect all first
+      // Disconnect disabled exchanges and disconnect/clear all
       Object.entries(clients).forEach(([ex, client]) => {
-        if (client.isConnected?.()) {
-          console.log(`[ExchangeComparison] Disconnecting ${ex}`);
+        const isEnabled = enabledExchanges[ex as keyof typeof enabledExchanges];
+        if (!isEnabled || client.isConnected?.()) {
+          console.log(`[ExchangeComparison] Disconnecting ${ex} (enabled: ${isEnabled})`);
           client.disconnect();
           setStatus((prev) => ({ ...prev, [ex]: 'disconnected' }));
         }
@@ -92,7 +93,8 @@ export function ExchangeComparisonPage() {
 
             const exchangeKey = ex as keyof ExchangeCandles;
             const callback = handleCandle(exchangeKey);
-            console.log(`[ExchangeComparison] 🎯 Connecting ${ex} with symbol: ${exchangeSymbol}. Callback: ${typeof callback}`);
+            console.log(`[ExchangeComparison] 🎯 Created callback for ${exchangeKey}, type: ${typeof callback}`);
+            console.log(`[ExchangeComparison] 🎯 Connecting ${ex} with symbol: ${exchangeSymbol}`);
             await clients[exchangeKey].connect(exchangeSymbol, callback);
             setStatus((prev) => ({ ...prev, [exchangeKey]: 'connected' }));
             console.log(`[ExchangeComparison] ✅ ${ex} connected successfully`);
