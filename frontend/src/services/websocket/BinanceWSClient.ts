@@ -23,44 +23,55 @@ export class BinanceWSClient {
 
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(`${this.url}/${this.streamName}`);
+        const wsUrl = `${this.url}/${this.streamName}`;
+        console.log(`[Binance] 🔌 Attempting to connect to: ${wsUrl}`);
+        this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-          console.log(`Binance WS connected: ${symbol}`);
+          console.log(`[Binance] ✅ WebSocket OPEN - Connection established for ${symbol}`);
+          console.log(`[Binance] 🔍 WebSocket state: ${this.ws?.readyState} (OPEN=1)`);
           this.reconnectAttempts = 0;
           resolve();
         };
 
         this.ws.onmessage = (event: MessageEvent) => {
           try {
+            console.log(`[Binance] 📨 Message received (size: ${event.data.length} bytes)`);
             const message: BinanceKlineMessage = JSON.parse(event.data);
-            console.log(`[Binance WS] Message received. Closed: ${message.k.x}, Symbol: ${message.s}`);
+            console.log(`[Binance] ✔️ Parsed message. k.x=${message.k.x}, Symbol=${message.s}`);
+            console.log(`[Binance] 🔍 onCandleCallback exists?`, this.onCandleCallback !== null);
 
             // Only emit if candle is closed (x: true)
             if (message.k.x) {
-              console.log(`[Binance WS] 🎯 CANDLE CLOSED - Processing...`);
+              console.log(`[Binance] 🎯 CANDLE CLOSED - Processing...`);
               const candle = this.parseKline(message, symbol);
-              console.log(`[Binance WS] 📤 Calling callback with candle:`, candle);
-              this.onCandleCallback?.(candle);
-              console.log(`[Binance WS] ✅ Callback executed`);
+              console.log(`[Binance] 📤 Calling callback with candle:`, candle);
+              if (this.onCandleCallback) {
+                this.onCandleCallback(candle);
+                console.log(`[Binance] ✅ Callback executed successfully`);
+              } else {
+                console.error(`[Binance] ❌ onCandleCallback is null!`);
+              }
             } else {
-              console.log(`[Binance WS] ⏳ Candle still open (will wait for close)`);
+              console.log(`[Binance] ⏳ Candle still open (will wait for close)`);
             }
           } catch (err) {
-            console.error('Binance WS message parse error:', err);
+            console.error('[Binance] ❌ Message parse error:', err);
           }
         };
 
         this.ws.onerror = (err: Event) => {
-          console.error('Binance WS error:', err);
+          console.error('[Binance] ❌ WebSocket ERROR:', err);
           reject(err);
         };
 
-        this.ws.onclose = () => {
-          console.log('Binance WS closed');
+        this.ws.onclose = (event: CloseEvent) => {
+          console.log(`[Binance] ❌ WebSocket CLOSED - Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
+          console.log(`[Binance] 🔍 WebSocket state: ${this.ws?.readyState} (CLOSED=3)`);
           this.attemptReconnect();
         };
       } catch (err) {
+        console.error('[Binance] ❌ Connection setup error:', err);
         reject(err);
       }
     });

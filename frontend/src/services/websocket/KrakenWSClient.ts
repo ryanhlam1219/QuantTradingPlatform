@@ -47,6 +47,7 @@ export class KrakenWSClient {
           try {
             console.log(`[Kraken] 📨 Message received (size: ${event.data.length} bytes)`);
             const message = JSON.parse(event.data);
+            console.log(`[Kraken] 📦 Raw message:`, message);
 
             // Subscription confirmation
             if (message.event === 'subscriptionStatus') {
@@ -59,6 +60,7 @@ export class KrakenWSClient {
             }
 
             // OHLC data comes as array: [channelId, [[time, open, high, low, close, vwap, volume, count], ...], 'ohlc', pair]
+            console.log(`[Kraken] 🔍 Checking if array: ${Array.isArray(message)}, length: ${message.length}, message[2]: ${message[2]}`);
             if (Array.isArray(message) && message.length >= 4 && message[2] === 'ohlc') {
               console.log(`[Kraken] 🎯 OHLC data received:`, message);
               const ohlcData = message[1];

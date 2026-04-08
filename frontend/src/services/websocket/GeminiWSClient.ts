@@ -38,6 +38,7 @@ export class GeminiWSClient {
             console.log(`[Gemini] 📨 Message received (size: ${event.data.length} bytes)`);
             const message = JSON.parse(event.data);
             console.log(`[Gemini] ✔️ Parsed message. Type: ${message.type}`);
+            console.log(`[Gemini] 🔍 onCandleCallback exists?`, this.onCandleCallback !== null);
 
             // Gemini sends heartbeats (type: 'heartbeat')
             if (message.type === 'heartbeat') {
@@ -64,8 +65,12 @@ export class GeminiWSClient {
                   assetClass: 'crypto',
                 };
                 console.log(`[Gemini] 📤 Calling callback with candle:`, candle);
-                this.onCandleCallback?.(candle);
-                console.log(`[Gemini] ✅ Callback executed`);
+                if (this.onCandleCallback) {
+                  this.onCandleCallback(candle);
+                  console.log(`[Gemini] ✅ Callback executed successfully`);
+                } else {
+                  console.error(`[Gemini] ❌ onCandleCallback is null!`);
+                }
               }
             }
           } catch (err) {

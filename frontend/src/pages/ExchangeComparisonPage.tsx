@@ -40,13 +40,13 @@ export function ExchangeComparisonPage() {
 
   // Handle incoming candle from any exchange
   const handleCandle = (exchange: keyof ExchangeCandles) => (candle: NormalizedCandle) => {
-    console.log(`📊 Candle received [${exchange}]:`, candle);
+    console.log(`[ExchangeComparison] 📊 Candle received [${exchange}]:`, candle);
     setCandles((prev) => {
       const updated = {
         ...prev,
         [exchange]: [...prev[exchange], candle],
       };
-      console.log(`📈 Candles updated for ${exchange}:`, updated[exchange].length, 'total');
+      console.log(`[ExchangeComparison] 📈 Candles updated for ${exchange}: ${updated[exchange].length} total, state now contains:`, updated);
       return updated;
     });
   };
