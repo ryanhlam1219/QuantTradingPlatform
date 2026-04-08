@@ -20,6 +20,7 @@ export class BinanceWSClient {
    * @param onCandle - Callback fired when a 1m candle closes
    */
   async connect(symbol: string, onCandle: (candle: NormalizedCandle) => void): Promise<void> {
+    console.log(`[Binance US] 🔌🔌🔌 CONNECT CALLED FOR: ${symbol}`);
     this.symbol = symbol;
     this.onCandleCallback = onCandle;
     this.streamName = `${symbol.toLowerCase()}@klines_1m`;
@@ -31,12 +32,16 @@ export class BinanceWSClient {
       try {
         const wsUrl = `${this.url}/${this.streamName}`;
         console.log(`[Binance US] 🔌 Attempting WebSocket connection to: ${wsUrl}`);
+        console.log(`[Binance US] 📍 URL parts: base=${this.url}, stream=${this.streamName}`);
         this.ws = new WebSocket(wsUrl);
+        console.log(`[Binance US] 📝 WebSocket object created`);
 
         this.ws.onopen = () => {
           console.log(`[Binance US] ✅ WebSocket OPEN for ${symbol}`);
           console.log(`[Binance US] ℹ️ Stream: ${this.streamName}`);
+          console.log(`[Binance US] ℹ️ Full URL: ${wsUrl}`);
           console.log(`[Binance US] 🎧 Listening for kline data...`);
+          console.log(`[Binance US] ⚠️ If no messages appear, stream name format may be wrong for Binance US`);
           this.reconnectAttempts = 0;
 
           // Heartbeat to confirm connection is alive
@@ -52,6 +57,7 @@ export class BinanceWSClient {
         };
 
         this.ws.onmessage = (event: MessageEvent) => {
+          console.log(`[Binance US] 🚨🚨🚨 ONMESSAGE TRIGGERED - Message received!`);
           try {
             this.messageCount++;
             console.log(`[Binance US] 📨 Message #${this.messageCount} received (${event.data.length} bytes)`);
@@ -84,6 +90,8 @@ export class BinanceWSClient {
           console.log(`[Binance US] ❌ WebSocket closed - Code: ${event.code}`);
           this.attemptReconnect();
         };
+
+        console.log(`[Binance US] ✅ ALL EVENT HANDLERS ATTACHED`);
       } catch (err) {
         console.error('[Binance US] ❌ Setup error:', err);
         reject(err);

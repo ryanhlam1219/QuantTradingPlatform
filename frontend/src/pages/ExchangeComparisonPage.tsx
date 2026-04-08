@@ -79,6 +79,7 @@ export function ExchangeComparisonPage() {
       const connectionPromises = Object.entries(enabledExchanges)
         .filter(([ex, enabled]) => enabled && (ex === 'binance' || ex === 'kraken' || ex === 'gemini'))
         .map(async ([ex, _]) => {
+          console.log(`[ExchangeComparison] 🔌 Starting connection for ${ex}`);
           setStatus((prev) => ({ ...prev, [ex]: 'connecting' }));
           try {
             // Map symbol format: BTCUSD -> BTCUSDT (Binance), XBT/USD (Kraken), btcusd (Gemini)
