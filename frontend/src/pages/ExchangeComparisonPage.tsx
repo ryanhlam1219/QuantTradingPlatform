@@ -16,8 +16,8 @@ export function ExchangeComparisonPage() {
   const [timeframe, setTimeframe] = useState<Timeframe>(Timeframe.M1);
   const [enabledExchanges, setEnabledExchanges] = useState<Record<string, boolean>>({
     binance: true,
-    kraken: false, // Disabled: WS connection drops immediately — TODO: debug API format
-    gemini: false, // Disabled: WS connection drops immediately — TODO: debug API format
+    kraken: false,
+    gemini: false,
   });
 
   const [candles, setCandles] = useState<ExchangeCandles>({
