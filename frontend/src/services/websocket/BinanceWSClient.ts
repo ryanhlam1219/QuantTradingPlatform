@@ -32,6 +32,19 @@ export class BinanceWSClient {
         console.log(`[Binance] 🔌 Attempting to connect to: ${wsUrl}`);
         const connectTime = Date.now();
         console.log(`[Binance] ⏱️ Connection attempt timestamp: ${connectTime}`);
+
+        // First, test basic DNS resolution by trying to fetch from the domain
+        console.log(`[Binance] 🧪 Testing network connectivity to Binance...`);
+        fetch('https://api.binance.com/api/v3/ping', { method: 'GET' })
+          .then(r => {
+            console.log(`[Binance] ✅ DNS/Network test PASSED - can reach api.binance.com`);
+          })
+          .catch(e => {
+            console.error(`[Binance] ⚠️ Network test FAILED - cannot reach api.binance.com:`, e.message);
+            console.log(`[Binance] ℹ️ This may indicate: ISP block, firewall block, or DNS issue`);
+          });
+
+        console.log(`[Binance] 📝 Creating WebSocket connection...`);
         this.ws = new WebSocket(wsUrl);
         console.log(`[Binance] 📝 WebSocket object created`);
 
