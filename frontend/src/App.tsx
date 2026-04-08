@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { useState, useCallback, useMemo } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Dashboard } from "./pages/Dashboard";
 import { BacktestPage } from "./pages/BacktestPage";
@@ -42,7 +42,17 @@ const PAGE_ROUTES: Record<Page, string> = {
 // Inner component that uses useNavigate hook
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mounted, setMounted] = useState<Set<Page>>(new Set(["dashboard"]));
+
+  // Determine current page from URL pathname
+  const currentPage = useMemo(() => {
+    const path = location.pathname;
+    for (const [page, route] of Object.entries(PAGE_ROUTES)) {
+      if (route === path) return page as Page;
+    }
+    return "dashboard";
+  }, [location.pathname]);
 
   const [pendingResearchSymbols, setPendingResearchSymbols] = useState<string[]>([]);
   const [pendingPortfolioItems,  setPendingPortfolioItems]  = useState<
@@ -88,7 +98,7 @@ function AppContent() {
 
   return (
     <div className="app-shell">
-      <Sidebar currentPage="dashboard" onNavigate={handleNavigate} />
+      <Sidebar currentPage={currentPage} onNavigate={handleNavigate} />
 
       <main className="main-content">
         <Routes>
