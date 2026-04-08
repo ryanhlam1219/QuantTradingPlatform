@@ -23,25 +23,31 @@ export class GeminiWSClient {
       try {
         // Gemini WS URL includes the symbol
         const wsUrl = `${this.url}/${this.symbol}`;
+        console.log(`[Gemini] 🔌 Attempting to connect to: ${wsUrl}`);
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-          console.log(`Gemini WS connected: ${symbol}`);
+          console.log(`[Gemini] ✅ WebSocket OPEN - Connection established for ${symbol}`);
+          console.log(`[Gemini] 🔍 WebSocket state: ${this.ws?.readyState} (OPEN=1)`);
           this.reconnectAttempts = 0;
           resolve();
         };
 
         this.ws.onmessage = (event: MessageEvent) => {
           try {
+            console.log(`[Gemini] 📨 Message received (size: ${event.data.length} bytes)`);
             const message = JSON.parse(event.data);
+            console.log(`[Gemini] ✔️ Parsed message. Type: ${message.type}`);
 
             // Gemini sends heartbeats (type: 'heartbeat')
             if (message.type === 'heartbeat') {
+              console.log(`[Gemini] 💓 Heartbeat received`);
               return;
             }
 
             // Candles come as type: 'candles'
             if (message.type === 'candles' && message.changes && Array.isArray(message.changes)) {
+              console.log(`[Gemini] 🎯 CANDLE data received with ${message.changes.length} changes`);
               // Each entry is [time, open, high, low, close, volume]
               for (const change of message.changes) {
                 const [time, open, high, low, close, volume] = change;
@@ -57,21 +63,24 @@ export class GeminiWSClient {
                   broker: 'gemini',
                   assetClass: 'crypto',
                 };
+                console.log(`[Gemini] 📤 Calling callback with candle:`, candle);
                 this.onCandleCallback?.(candle);
+                console.log(`[Gemini] ✅ Callback executed`);
               }
             }
           } catch (err) {
-            console.error('Gemini WS message parse error:', err);
+            console.error('[Gemini] ❌ Message parse error:', err);
           }
         };
 
         this.ws.onerror = (err: Event) => {
-          console.error('Gemini WS error:', err);
+          console.error('[Gemini] ❌ WebSocket ERROR:', err);
           reject(err);
         };
 
-        this.ws.onclose = () => {
-          console.log('Gemini WS closed');
+        this.ws.onclose = (event: CloseEvent) => {
+          console.log(`[Gemini] ❌ WebSocket CLOSED - Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
+          console.log(`[Gemini] 🔍 WebSocket state: ${this.ws?.readyState} (CLOSED=3)`);
           this.attemptReconnect();
         };
       } catch (err) {
@@ -85,18 +94,18 @@ export class GeminiWSClient {
    */
   private attemptReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error(`Gemini WS: max reconnect attempts (${this.maxReconnectAttempts}) reached`);
+      console.error(`[Gemini] ❌ max reconnect attempts (${this.maxReconnectAttempts}) reached`);
       return;
     }
 
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 60000);
-    console.log(`Gemini WS: reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    console.log(`[Gemini] 🔄 reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
       if (this.symbol && this.onCandleCallback) {
         this.connect(this.symbol, this.onCandleCallback).catch((err) => {
-          console.error('Gemini WS reconnect failed:', err);
+          console.error('[Gemini] ❌ reconnect failed:', err);
         });
       }
     }, delay);

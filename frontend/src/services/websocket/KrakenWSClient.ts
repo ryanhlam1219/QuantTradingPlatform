@@ -22,40 +22,45 @@ export class KrakenWSClient {
 
     return new Promise((resolve, reject) => {
       try {
+        console.log(`[Kraken] 🔌 Attempting to connect to: ${this.url}`);
         this.ws = new WebSocket(this.url);
 
         this.ws.onopen = () => {
-          console.log(`Kraken WS connected, subscribing to ${symbol}`);
+          console.log(`[Kraken] ✅ WebSocket OPEN - Connection established for ${symbol}`);
+          console.log(`[Kraken] 🔍 WebSocket state: ${this.ws?.readyState} (OPEN=1)`);
           // Subscribe to OHLC (1m) feed
-          this.ws!.send(
-            JSON.stringify({
-              event: 'subscribe',
-              pair: [symbol],
-              subscription: {
-                name: 'ohlc',
-                interval: 1,
-              },
-            })
-          );
+          const subscriptionMsg = {
+            event: 'subscribe',
+            pair: [symbol],
+            subscription: {
+              name: 'ohlc',
+              interval: 1,
+            },
+          };
+          console.log(`[Kraken] 📤 Sending subscription message:`, subscriptionMsg);
+          this.ws!.send(JSON.stringify(subscriptionMsg));
           this.reconnectAttempts = 0;
           resolve();
         };
 
         this.ws.onmessage = (event: MessageEvent) => {
           try {
+            console.log(`[Kraken] 📨 Message received (size: ${event.data.length} bytes)`);
             const message = JSON.parse(event.data);
 
             // Subscription confirmation
             if (message.event === 'subscriptionStatus') {
+              console.log(`[Kraken] 📋 Subscription status:`, message);
               if (message.status === 'subscribed') {
                 this.channelId = message.channelID;
-                console.log(`Kraken WS subscribed with channel ID ${this.channelId}`);
+                console.log(`[Kraken] ✔️ Subscribed with channel ID ${this.channelId}`);
               }
               return;
             }
 
             // OHLC data comes as array: [channelId, [[time, open, high, low, close, vwap, volume, count], ...], 'ohlc', pair]
             if (Array.isArray(message) && message.length >= 4 && message[2] === 'ohlc') {
+              console.log(`[Kraken] 🎯 OHLC data received:`, message);
               const ohlcData = message[1];
               if (Array.isArray(ohlcData) && ohlcData.length > 0) {
                 const lastCandle = ohlcData[ohlcData.length - 1];
@@ -73,21 +78,24 @@ export class KrakenWSClient {
                   broker: 'kraken',
                   assetClass: 'crypto',
                 };
+                console.log(`[Kraken] 📤 Calling callback with candle:`, candle);
                 this.onCandleCallback?.(candle);
+                console.log(`[Kraken] ✅ Callback executed`);
               }
             }
           } catch (err) {
-            console.error('Kraken WS message parse error:', err);
+            console.error('[Kraken] ❌ Message parse error:', err);
           }
         };
 
         this.ws.onerror = (err: Event) => {
-          console.error('Kraken WS error:', err);
+          console.error('[Kraken] ❌ WebSocket ERROR:', err);
           reject(err);
         };
 
-        this.ws.onclose = () => {
-          console.log('Kraken WS closed');
+        this.ws.onclose = (event: CloseEvent) => {
+          console.log(`[Kraken] ❌ WebSocket CLOSED - Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
+          console.log(`[Kraken] 🔍 WebSocket state: ${this.ws?.readyState} (CLOSED=3)`);
           this.attemptReconnect();
         };
       } catch (err) {
@@ -101,18 +109,18 @@ export class KrakenWSClient {
    */
   private attemptReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error(`Kraken WS: max reconnect attempts (${this.maxReconnectAttempts}) reached`);
+      console.error(`[Kraken] ❌ max reconnect attempts (${this.maxReconnectAttempts}) reached`);
       return;
     }
 
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 60000);
-    console.log(`Kraken WS: reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    console.log(`[Kraken] 🔄 reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
       if (this.symbol && this.onCandleCallback) {
         this.connect(this.symbol, this.onCandleCallback).catch((err) => {
-          console.error('Kraken WS reconnect failed:', err);
+          console.error('[Kraken] ❌ reconnect failed:', err);
         });
       }
     }, delay);
