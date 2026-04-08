@@ -10,6 +10,7 @@ export class KrakenWSClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 5000;
+  private isIntentionallyClosed = false;
 
   /**
    * Connect and subscribe to 1-minute OHLC feed for a symbol.
@@ -19,6 +20,8 @@ export class KrakenWSClient {
   async connect(symbol: string, onCandle: (candle: NormalizedCandle) => void): Promise<void> {
     this.symbol = symbol;
     this.onCandleCallback = onCandle;
+    this.isIntentionallyClosed = false;
+    this.reconnectAttempts = 0;
 
     return new Promise((resolve, reject) => {
       try {
@@ -110,6 +113,11 @@ export class KrakenWSClient {
    * Attempt to reconnect with exponential backoff.
    */
   private attemptReconnect(): void {
+    if (this.isIntentionallyClosed) {
+      console.log(`[Kraken] ℹ️ Skipping reconnect - intentionally closed`);
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error(`[Kraken] ❌ max reconnect attempts (${this.maxReconnectAttempts}) reached`);
       return;
@@ -120,7 +128,7 @@ export class KrakenWSClient {
     console.log(`[Kraken] 🔄 reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
-      if (this.symbol && this.onCandleCallback) {
+      if (this.symbol && this.onCandleCallback && !this.isIntentionallyClosed) {
         this.connect(this.symbol, this.onCandleCallback).catch((err) => {
           console.error('[Kraken] ❌ reconnect failed:', err);
         });
@@ -132,10 +140,14 @@ export class KrakenWSClient {
    * Disconnect and clean up.
    */
   disconnect(): void {
+    console.log(`[Kraken] 🔌 Disconnect called - marking as intentionally closed`);
+    this.isIntentionallyClosed = true;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
+    this.onCandleCallback = null;
+    this.symbol = null;
   }
 
   /**

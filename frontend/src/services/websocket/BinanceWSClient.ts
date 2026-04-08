@@ -10,6 +10,7 @@ export class BinanceWSClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 5000; // 5 seconds
+  private isIntentionallyClosed = false;
 
   /**
    * Connect and subscribe to 1-minute kline stream for a symbol.
@@ -20,6 +21,8 @@ export class BinanceWSClient {
     this.symbol = symbol;
     this.onCandleCallback = onCandle;
     this.streamName = `${symbol.toLowerCase()}@klines_1m`;
+    this.isIntentionallyClosed = false;
+    this.reconnectAttempts = 0;
 
     return new Promise((resolve, reject) => {
       try {
@@ -107,19 +110,24 @@ export class BinanceWSClient {
    * Attempt to reconnect with exponential backoff.
    */
   private attemptReconnect(): void {
+    if (this.isIntentionallyClosed) {
+      console.log(`[Binance] ℹ️ Skipping reconnect - intentionally closed`);
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error(`Binance WS: max reconnect attempts (${this.maxReconnectAttempts}) reached`);
+      console.error(`[Binance] ❌ max reconnect attempts (${this.maxReconnectAttempts}) reached`);
       return;
     }
 
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 60000);
-    console.log(`Binance WS: reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    console.log(`[Binance] 🔄 reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
-      if (this.symbol && this.onCandleCallback) {
+      if (this.symbol && this.onCandleCallback && !this.isIntentionallyClosed) {
         this.connect(this.symbol, this.onCandleCallback).catch((err) => {
-          console.error('Binance WS reconnect failed:', err);
+          console.error('[Binance] ❌ reconnect failed:', err);
         });
       }
     }, delay);
@@ -129,10 +137,14 @@ export class BinanceWSClient {
    * Disconnect and clean up.
    */
   disconnect(): void {
+    console.log(`[Binance] 🔌 Disconnect called - marking as intentionally closed`);
+    this.isIntentionallyClosed = true;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
+    this.onCandleCallback = null;
+    this.symbol = null;
   }
 
   /**

@@ -9,6 +9,7 @@ export class GeminiWSClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 5000;
+  private isIntentionallyClosed = false;
 
   /**
    * Connect and subscribe to candles feed for a symbol.
@@ -18,6 +19,8 @@ export class GeminiWSClient {
   async connect(symbol: string, onCandle: (candle: NormalizedCandle) => void): Promise<void> {
     this.symbol = symbol.toLowerCase();
     this.onCandleCallback = onCandle;
+    this.isIntentionallyClosed = false;
+    this.reconnectAttempts = 0;
 
     return new Promise((resolve, reject) => {
       try {
@@ -98,6 +101,11 @@ export class GeminiWSClient {
    * Attempt to reconnect with exponential backoff.
    */
   private attemptReconnect(): void {
+    if (this.isIntentionallyClosed) {
+      console.log(`[Gemini] ℹ️ Skipping reconnect - intentionally closed`);
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error(`[Gemini] ❌ max reconnect attempts (${this.maxReconnectAttempts}) reached`);
       return;
@@ -108,7 +116,7 @@ export class GeminiWSClient {
     console.log(`[Gemini] 🔄 reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
-      if (this.symbol && this.onCandleCallback) {
+      if (this.symbol && this.onCandleCallback && !this.isIntentionallyClosed) {
         this.connect(this.symbol, this.onCandleCallback).catch((err) => {
           console.error('[Gemini] ❌ reconnect failed:', err);
         });
@@ -120,10 +128,14 @@ export class GeminiWSClient {
    * Disconnect and clean up.
    */
   disconnect(): void {
+    console.log(`[Gemini] 🔌 Disconnect called - marking as intentionally closed`);
+    this.isIntentionallyClosed = true;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
+    this.onCandleCallback = null;
+    this.symbol = null;
   }
 
   /**
