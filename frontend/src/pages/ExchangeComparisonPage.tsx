@@ -40,11 +40,22 @@ export function ExchangeComparisonPage() {
 
   // Handle incoming candle from any exchange
   const handleCandle = (exchange: keyof ExchangeCandles) => (candle: NormalizedCandle) => {
-    setCandles((prev) => ({
-      ...prev,
-      [exchange]: [...prev[exchange], candle],
-    }));
+    console.log(`📊 Candle received [${exchange}]:`, candle);
+    setCandles((prev) => {
+      const updated = {
+        ...prev,
+        [exchange]: [...prev[exchange], candle],
+      };
+      console.log(`📈 Candles updated for ${exchange}:`, updated[exchange].length, 'total');
+      return updated;
+    });
   };
+
+  // Debug: log whenever candles change
+  useEffect(() => {
+    const total = candles.binance.length + candles.kraken.length + candles.gemini.length;
+    console.log(`🔍 Total candles in state: ${total}`, candles);
+  }, [candles]);
 
   // Connect to exchanges when symbol or enabledExchanges change
   useEffect(() => {
@@ -153,6 +164,11 @@ export function ExchangeComparisonPage() {
             <option value={Timeframe.D1}>1d</option>
           </select>
         </div>
+      </div>
+
+      {/* Debug Info */}
+      <div style={{ padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', marginBottom: '20px', fontSize: '12px', fontFamily: 'monospace' }}>
+        <strong>🔍 Debug:</strong> Binance candles in state: {candles.binance.length} | Kraken: {candles.kraken.length} | Gemini: {candles.gemini.length}
       </div>
 
       {/* Exchange toggles */}
