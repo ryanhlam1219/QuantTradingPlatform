@@ -72,24 +72,35 @@ export class BinanceWSClient {
         };
 
         this.ws.onmessage = (event: MessageEvent) => {
-          console.log(`[Binance US] 🚨🚨🚨 ONMESSAGE TRIGGERED - Message received!`);
-          try {
-            this.messageCount++;
-            console.log(`[Binance US] 📨 Message #${this.messageCount} received (${event.data.length} bytes)`);
+          this.messageCount++;
+          console.log(`[Binance US] 📨 Message #${this.messageCount} (${event.data.length} bytes): ${event.data.substring(0, 100)}`);
 
+          try {
             const message: BinanceKlineMessage = JSON.parse(event.data);
 
-            if (message.k && message.k.x) {
-              console.log(`[Binance US] 🎯 Candle closed - O: ${message.k.o}, H: ${message.k.h}, L: ${message.k.l}, C: ${message.k.c}, V: ${message.k.v}`);
+            // Check if it's a subscription confirmation or result
+            if (message.result === null && message.id) {
+              console.log(`[Binance US] ✅ Subscription confirmed (ID: ${message.id})`);
+              return;
+            }
 
-              const candle = this.parseKline(message, symbol);
+            // Check if it's actual kline data
+            if (message.k) {
+              if (message.k.x) {
+                console.log(`[Binance US] 🎯 CANDLE CLOSED`);
+                console.log(`[Binance US] 📊 O: ${message.k.o}, H: ${message.k.h}, L: ${message.k.l}, C: ${message.k.c}, V: ${message.k.v}`);
 
-              if (this.onCandleCallback) {
-                this.onCandleCallback(candle);
-                console.log(`[Binance US] ✅ Candle emitted to UI`);
+                const candle = this.parseKline(message, symbol);
+
+                if (this.onCandleCallback) {
+                  this.onCandleCallback(candle);
+                  console.log(`[Binance US] ✅ Candle emitted to UI`);
+                }
+              } else {
+                console.log(`[Binance US] ⏳ Candle building - C: ${message.k.c}`);
               }
-            } else if (message.k) {
-              console.log(`[Binance US] ⏳ Candle open - C: ${message.k.c}`);
+            } else {
+              console.log(`[Binance US] 📋 Other message:`, message);
             }
           } catch (err) {
             console.error('[Binance US] ❌ Error processing message:', err);
