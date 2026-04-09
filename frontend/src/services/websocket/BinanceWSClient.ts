@@ -3,7 +3,7 @@ import { Timeframe } from '../../types/Timeframe';
 
 export class BinanceWSClient {
   private ws: WebSocket | null = null;
-  // Binance US WebSocket API endpoint (correct endpoint)
+  // Binance US WebSocket API endpoint
   private url = 'wss://ws-api.binance.us:443/ws-api/v3';
   private symbol: string | null = null;
   private onCandleCallback: ((candle: NormalizedCandle) => void) | null = null;
@@ -13,6 +13,10 @@ export class BinanceWSClient {
   private isIntentionallyClosed = false;
   private messageCount = 0;
   private requestId = 1;
+
+  // API credentials from environment
+  private apiKey = import.meta.env.VITE_BINANCE_API_KEY || '';
+  private apiSecret = import.meta.env.VITE_BINANCE_SECRET_KEY || '';
 
   /**
    * Connect and subscribe to 1-minute kline stream for a symbol using Binance US WebSocket API.
@@ -32,23 +36,42 @@ export class BinanceWSClient {
         console.log(`[Binance US] 🔌 Attempting connection to: ${this.url}`);
         this.ws = new WebSocket(this.url);
 
-        this.ws.onopen = () => {
+        this.ws.onopen = async () => {
           console.log(`[Binance US] ✅ WebSocket OPEN`);
-          console.log(`[Binance US] 📤 Subscribing to klines for ${symbol}...`);
+          console.log(`[Binance US] 📤 Subscribing to klines for ${symbol} (authenticated)...`);
 
-          // Send subscription request using Binance US API format
-          // params must be an object, not an array
+          if (!this.apiKey || !this.apiSecret) {
+            console.error(`[Binance US] ❌ Missing API credentials. Set VITE_BINANCE_API_KEY and VITE_BINANCE_SECRET_KEY in .env`);
+            this.ws!.close();
+            return;
+          }
+
+          // Create authenticated subscription request
+          const timestamp = Date.now();
+          const stream = `${symbol.toLowerCase()}@kline_1m`;
+
           const subscribeRequest = {
             id: this.requestId++,
             method: 'stream.subscribe',
             params: {
-              streams: [`${symbol.toLowerCase()}@kline_1m`]
+              streams: [stream]
             }
           };
 
           try {
+            // Create signature for authentication
+            const signature = await this.createSignature(JSON.stringify(subscribeRequest), timestamp);
+
+            // Add authentication to request
+            subscribeRequest.params = {
+              ...subscribeRequest.params,
+              apiKey: this.apiKey,
+              timestamp: timestamp,
+              signature: signature
+            };
+
             this.ws!.send(JSON.stringify(subscribeRequest));
-            console.log(`[Binance US] ✅ Subscribe request sent`);
+            console.log(`[Binance US] ✅ Authenticated subscribe request sent`);
           } catch (err) {
             console.error(`[Binance US] ❌ Failed to send subscription:`, err);
           }
@@ -135,6 +158,25 @@ export class BinanceWSClient {
         reject(err);
       }
     });
+  }
+
+  /**
+   * Create HMAC-SHA256 signature for authenticated API requests.
+   */
+  private async createSignature(data: string, timestamp: number): Promise<string> {
+    const message = `${data}${timestamp}`;
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(this.apiSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    const hashArray = Array.from(new Uint8Array(signature));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   /**
