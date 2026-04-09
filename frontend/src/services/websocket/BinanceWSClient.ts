@@ -46,30 +46,33 @@ export class BinanceWSClient {
             return;
           }
 
-          // Create authenticated subscription request
-          const timestamp = Date.now();
-          const stream = `${symbol.toLowerCase()}@kline_1m`;
-
-          const subscribeRequest = {
-            id: this.requestId++,
-            method: 'stream.subscribe',
-            params: {
-              streams: [stream]
-            }
-          };
-
           try {
-            // Create signature for authentication
-            const signature = await this.createSignature(JSON.stringify(subscribeRequest), timestamp);
+            // Create authenticated subscription request
+            const timestamp = Date.now();
+            const stream = `${symbol.toLowerCase()}@kline_1m`;
 
-            // Add authentication to request
-            subscribeRequest.params = {
-              ...subscribeRequest.params,
+            // Build params object with streams
+            const params = {
+              streams: [stream],
               apiKey: this.apiKey,
-              timestamp: timestamp,
-              signature: signature
+              timestamp: timestamp
             };
 
+            // Create signature from params string (signature param format)
+            const paramsString = `streams=[${JSON.stringify(stream)}]&apiKey=${this.apiKey}&timestamp=${timestamp}`;
+            const signature = await this.createSignature(paramsString, this.apiSecret);
+
+            // Create full request with signature
+            const subscribeRequest = {
+              id: this.requestId++,
+              method: 'stream.subscribe',
+              params: {
+                ...params,
+                signature: signature
+              }
+            };
+
+            console.log(`[Binance US] 📝 Sending authenticated request with signature`);
             this.ws!.send(JSON.stringify(subscribeRequest));
             console.log(`[Binance US] ✅ Authenticated subscribe request sent`);
           } catch (err) {
@@ -105,7 +108,8 @@ export class BinanceWSClient {
 
             // Handle errors
             if (message.error) {
-              console.error(`[Binance US] ❌ Error:`, message.error);
+              console.error(`[Binance US] ❌ Error:`, JSON.stringify(message.error));
+              console.error(`[Binance US] Error code: ${message.error.code}, msg: ${message.error.msg}`);
               return;
             }
 
@@ -163,18 +167,17 @@ export class BinanceWSClient {
   /**
    * Create HMAC-SHA256 signature for authenticated API requests.
    */
-  private async createSignature(data: string, timestamp: number): Promise<string> {
-    const message = `${data}${timestamp}`;
+  private async createSignature(data: string, secret: string): Promise<string> {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(this.apiSecret),
+      encoder.encode(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     );
 
-    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
     const hashArray = Array.from(new Uint8Array(signature));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
