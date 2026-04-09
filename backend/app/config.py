@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
@@ -33,6 +34,14 @@ class Settings(BaseSettings):
     binance_api_key: Optional[str] = None
     binance_secret_key: Optional[str] = None
 
+    # Gemini
+    gemini_api_key: Optional[str] = None
+    gemini_secret_key: Optional[str] = None
+
+    # Telegram Webhooks (for alerts)
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
+
     # Ollama (local LLM for market research)
     # Start with: ollama serve  then  ollama pull llama3
     # Swap model for any you have: mistral, qwen2.5, phi3, etc.
@@ -44,9 +53,11 @@ class Settings(BaseSettings):
     app_name: str = "Trading Platform"
     app_version: str = "1.0.0"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore"  # Ignore extra fields from .env (e.g., VITE_* from frontend)
+    )
 
 
 settings = Settings()
