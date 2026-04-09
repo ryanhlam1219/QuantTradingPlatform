@@ -18,6 +18,11 @@ export class BinanceWSClient {
   private apiKey = import.meta.env.VITE_BINANCE_API_KEY || '';
   private apiSecret = import.meta.env.VITE_BINANCE_SECRET_KEY || '';
 
+  constructor() {
+    console.log(`[Binance US] 🔑 API Key loaded: ${this.apiKey ? `${this.apiKey.substring(0, 10)}...` : 'NOT SET'}`);
+    console.log(`[Binance US] 🔑 Secret loaded: ${this.apiSecret ? 'YES' : 'NOT SET'}`);
+  }
+
   /**
    * Connect and subscribe to 1-minute kline stream for a symbol using Binance US WebSocket API.
    * @param symbol - e.g., "BTCUSDT" or "ETHUSDT"
@@ -51,30 +56,29 @@ export class BinanceWSClient {
             const timestamp = Date.now();
             const stream = `${symbol.toLowerCase()}@kline_1m`;
 
-            // Build params object with streams
-            const params = {
-              streams: [stream],
-              apiKey: this.apiKey,
-              timestamp: timestamp
-            };
+            // Create signature from query string format
+            // Format: apiKey=xxx&streams=["stream"]&timestamp=xxx
+            const signaturePayload = `apiKey=${this.apiKey}&streams=${JSON.stringify([stream])}&timestamp=${timestamp}`;
+            console.log(`[Binance US] 📝 Signature payload: ${signaturePayload}`);
 
-            // Create signature from params string (signature param format)
-            const paramsString = `streams=[${JSON.stringify(stream)}]&apiKey=${this.apiKey}&timestamp=${timestamp}`;
-            const signature = await this.createSignature(paramsString, this.apiSecret);
+            const signature = await this.createSignature(signaturePayload, this.apiSecret);
+            console.log(`[Binance US] 🔐 Generated signature: ${signature.substring(0, 20)}...`);
 
             // Create full request with signature
             const subscribeRequest = {
               id: this.requestId++,
               method: 'stream.subscribe',
               params: {
-                ...params,
+                streams: [stream],
+                apiKey: this.apiKey,
+                timestamp: timestamp,
                 signature: signature
               }
             };
 
-            console.log(`[Binance US] 📝 Sending authenticated request with signature`);
+            console.log(`[Binance US] 📤 Sending authenticated subscribe request`);
             this.ws!.send(JSON.stringify(subscribeRequest));
-            console.log(`[Binance US] ✅ Authenticated subscribe request sent`);
+            console.log(`[Binance US] ✅ Request sent`);
           } catch (err) {
             console.error(`[Binance US] ❌ Failed to send subscription:`, err);
           }
