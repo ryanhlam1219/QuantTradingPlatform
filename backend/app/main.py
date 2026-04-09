@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.routes import health, market_data, algorithms, backtest, trades, screener, research, portfolio, autotrader, risk
-from app.api.routes import cycles, admin, candlesticks, strategies
+from app.api.routes import cycles, admin, candlesticks, strategies, exchanges
 from app.core.cycle_manager import cycle_manager
 
 # ── File logging ─────────────────────────────────────────────────────────────
@@ -151,6 +151,7 @@ app.add_middleware(
 # cycles.py             /autotrader/cycles      api/routes/cycles.py
 # risk.py               /risk                   api/routes/risk.py
 # admin.py              /admin                  api/routes/admin.py
+# exchanges.py          /exchanges              api/routes/exchanges.py
 app.include_router(health.router)
 app.include_router(market_data.router)
 app.include_router(candlesticks.router)
@@ -165,6 +166,7 @@ app.include_router(autotrader.router)
 app.include_router(cycles.router)
 app.include_router(admin.router)
 app.include_router(risk.router)
+app.include_router(exchanges.router)
 
 
 @app.get("/")
