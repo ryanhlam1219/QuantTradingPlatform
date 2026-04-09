@@ -56,9 +56,10 @@ export class BinanceWSClient {
             const timestamp = Date.now();
             const stream = `${symbol.toLowerCase()}@kline_1m`;
 
-            // Create signature from query string format
-            // Format: apiKey=xxx&streams=["stream"]&timestamp=xxx
-            const signaturePayload = `apiKey=${this.apiKey}&streams=${JSON.stringify([stream])}&timestamp=${timestamp}`;
+            // Binance US signature format: concatenate all params alphabetically, then sign
+            // Parameters should be in alphabetical order: apiKey, streams, timestamp
+            const streamParam = `["${stream}"]`;
+            const signaturePayload = `apiKey=${this.apiKey}&streams=${streamParam}&timestamp=${timestamp}`;
             console.log(`[Binance US] 📝 Signature payload: ${signaturePayload}`);
 
             const signature = await this.createSignature(signaturePayload, this.apiSecret);
@@ -69,10 +70,10 @@ export class BinanceWSClient {
               id: this.requestId++,
               method: 'stream.subscribe',
               params: {
-                streams: [stream],
                 apiKey: this.apiKey,
-                timestamp: timestamp,
-                signature: signature
+                streams: [stream],
+                signature: signature,
+                timestamp: timestamp
               }
             };
 
