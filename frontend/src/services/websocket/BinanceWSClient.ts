@@ -21,6 +21,49 @@ export class BinanceWSClient {
   constructor() {
     console.log(`[Binance US] 🔑 API Key loaded: ${this.apiKey ? `${this.apiKey.substring(0, 10)}...` : 'NOT SET'}`);
     console.log(`[Binance US] 🔑 Secret loaded: ${this.apiSecret ? 'YES' : 'NOT SET'}`);
+    this.testRestAPI();
+  }
+
+  /**
+   * Test if REST API credentials work (for debugging)
+   */
+  private async testRestAPI(): Promise<void> {
+    try {
+      console.log(`[Binance US] 🧪 Testing REST API connectivity...`);
+      const response = await fetch('https://api.binance.us/api/v3/ping');
+      if (response.ok) {
+        console.log(`[Binance US] ✅ REST API reachable`);
+      } else {
+        console.error(`[Binance US] ❌ REST API returned ${response.status}`);
+      }
+
+      // Test with API key
+      console.log(`[Binance US] 🧪 Testing API key with account endpoint...`);
+      const timestamp = Date.now();
+      const queryString = `timestamp=${timestamp}`;
+      const signature = await this.createSignature(queryString, this.apiSecret);
+
+      const accountUrl = `https://api.binance.us/api/v3/account?timestamp=${timestamp}&signature=${signature}`;
+      const accountResponse = await fetch(accountUrl, {
+        headers: {
+          'X-MBX-APIKEY': this.apiKey
+        }
+      });
+
+      if (accountResponse.ok) {
+        const data = await accountResponse.json();
+        console.log(`[Binance US] ✅ API Key is VALID - Account loaded successfully`);
+        console.log(`[Binance US] 💰 Balances count:`, data.balances?.length || 0);
+      } else if (accountResponse.status === 401) {
+        console.error(`[Binance US] ❌ API Key INVALID - Got 401 Unauthorized`);
+        console.error(`[Binance US] ❌ Check if your API key and secret are correct`);
+      } else {
+        const error = await accountResponse.text();
+        console.error(`[Binance US] ❌ Account endpoint failed: ${accountResponse.status}`, error);
+      }
+    } catch (err) {
+      console.error(`[Binance US] ❌ REST API test error:`, err);
+    }
   }
 
   /**
