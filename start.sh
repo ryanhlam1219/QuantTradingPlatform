@@ -247,8 +247,11 @@ start_frontend() {
   > "../$LOG_DIR/frontend.log"
 
   if [[ "$OS" == "windows" ]]; then
-    # Windows: start in new cmd window
-    start "" cmd /k "cd $PWD && npm run dev -- --port $FRONTEND_PORT > ../$LOG_DIR/frontend.log 2>&1"
+    # Windows: use nohup (same as Unix/macOS)
+    nohup npm run dev -- --port $FRONTEND_PORT \
+      > "../$LOG_DIR/frontend.log" 2>&1 &
+    local pid=$!
+    echo "$pid" > "../$FRONTEND_PID_FILE"
   else
     # Unix/macOS: use nohup
     nohup npm run dev -- --port $FRONTEND_PORT \
