@@ -30,6 +30,7 @@ class Broker(str, Enum):
     ALPACA = "alpaca"
     KRAKEN = "kraken"
     BINANCE_US = "binance_us"
+    GEMINI = "gemini"
     FIDELITY = "fidelity"
     MOCK = "mock"
 

@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Dashboard } from "./pages/Dashboard";
 import { BacktestPage } from "./pages/BacktestPage";
@@ -10,29 +11,55 @@ import { ResearchPage } from "./pages/ResearchPage";
 import { PortfolioBuilderPage } from "./pages/PortfolioBuilderPage";
 import { AutoTraderPage } from "./pages/AutoTraderPage";
 import { RiskManagementPage } from "./pages/RiskManagementPage";
+import { ExchangeComparisonPage } from "./pages/ExchangeComparisonPage";
 
 export type Page =
   | "dashboard" | "backtest" | "algorithms" | "trading" | "guide"
-  | "screener"  | "research" | "portfolio" | "autotrader" | "risk";
+  | "screener"  | "research" | "portfolio" | "autotrader" | "risk" | "exchanges";
 
 /**
  * Pages that should stay mounted once first visited (CSS-hidden when inactive).
  * This means their internal React state is never lost on navigation.
  * localStorage persistence (via usePersistentState) handles page refresh.
  */
-const KEEP_ALIVE_PAGES = new Set<Page>(["screener", "research", "portfolio", "autotrader"]);
+const KEEP_ALIVE_PAGES = new Set<Page>(["screener", "research", "portfolio", "autotrader", "exchanges"]);
 
-export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+// Map of page names to their route paths
+const PAGE_ROUTES: Record<Page, string> = {
+  "dashboard": "/",
+  "backtest": "/backtest",
+  "algorithms": "/algorithms",
+  "trading": "/trading",
+  "guide": "/guide",
+  "screener": "/screener",
+  "research": "/research",
+  "portfolio": "/portfolio",
+  "autotrader": "/autotrader",
+  "risk": "/risk",
+  "exchanges": "/exchanges",
+};
 
-  // Track which keep-alive pages have been mounted at least once.
-  // We only render a keep-alive page after its first visit, then keep it.
+// Inner component that uses useNavigate hook
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mounted, setMounted] = useState<Set<Page>>(new Set(["dashboard"]));
 
-  // ── Cross-page "pending" queues ─────────────────────────────────────────
-  // Instead of re-initializing the target page with props (which would reset
-  // its state), we pass "pending" additions. The target page consumes them
-  // via useEffect and then calls the "onConsumed" callback to clear them.
+  // Determine current page from URL pathname
+  const currentPage = useMemo(() => {
+    const path = location.pathname;
+    for (const [page, route] of Object.entries(PAGE_ROUTES)) {
+      if (route === path) return page as Page;
+    }
+    return "dashboard";
+  }, [location.pathname]);
+
+  // Ensure current page is mounted if it's a keep-alive page
+  useEffect(() => {
+    if (KEEP_ALIVE_PAGES.has(currentPage)) {
+      setMounted(prev => new Set([...prev, currentPage]));
+    }
+  }, [currentPage]);
 
   const [pendingResearchSymbols, setPendingResearchSymbols] = useState<string[]>([]);
   const [pendingPortfolioItems,  setPendingPortfolioItems]  = useState<
@@ -40,116 +67,129 @@ export default function App() {
   >([]);
   const [pendingAutoTraderSymbols, setPendingAutoTraderSymbols] = useState<string[]>([]);
 
-  // Navigate to a page, ensuring keep-alive pages are mounted
-  const navigate = useCallback((page: Page) => {
+  const handleNavigate = useCallback((page: Page) => {
     if (KEEP_ALIVE_PAGES.has(page)) {
       setMounted(prev => new Set([...prev, page]));
     }
-    setCurrentPage(page);
-  }, []);
+    navigate(PAGE_ROUTES[page]);
+  }, [navigate]);
 
-  // Add symbols to Research queue and navigate there
   const handleAddToResearch = useCallback((symbols: string[]) => {
     setPendingResearchSymbols(prev => {
       const merged = [...prev];
       symbols.forEach(s => { if (!merged.includes(s)) merged.push(s); });
       return merged;
     });
-    navigate("research");
-  }, [navigate]);
+    handleNavigate("research");
+  }, [handleNavigate]);
 
-  // Add a pair to Portfolio Builder and navigate there
   const handleSendToPortfolio = useCallback(
     (pair: { symbol: string; strategy: string; current_price: number }) => {
       setPendingPortfolioItems(prev => {
         const exists = prev.some(p => p.symbol === pair.symbol && p.strategy === pair.strategy);
         return exists ? prev : [...prev, pair];
       });
-      navigate("portfolio");
+      handleNavigate("portfolio");
     },
-    [navigate],
+    [handleNavigate],
   );
 
-  // Add symbols to AutoTrader queue and navigate there
   const handleAddToAutoTrader = useCallback((symbols: string[]) => {
     setPendingAutoTraderSymbols(prev => {
       const merged = [...prev];
       symbols.forEach(s => { if (!merged.includes(s)) merged.push(s); });
       return merged;
     });
-    navigate("autotrader");
-  }, [navigate]);
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
-  const isActive = (page: Page) => currentPage === page;
-
-  // Normal (non-keep-alive) page rendering
-  const normalPage = () => {
-    switch (currentPage) {
-      case "dashboard":  return <Dashboard />;
-      case "backtest":   return <BacktestPage />;
-      case "algorithms": return <AlgorithmsPage />;
-      case "trading":    return <TradingPage />;
-      case "guide":      return <GuidePage />;
-      case "risk":       return <RiskManagementPage />;
-      default:           return null;
-    }
-  };
+    handleNavigate("autotrader");
+  }, [handleNavigate]);
 
   return (
     <div className="app-shell">
-      <Sidebar currentPage={currentPage} onNavigate={navigate} />
+      <Sidebar currentPage={currentPage} onNavigate={handleNavigate} />
 
       <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/backtest" element={<BacktestPage />} />
+          <Route path="/algorithms" element={<AlgorithmsPage />} />
+          <Route path="/trading" element={<TradingPage />} />
+          <Route path="/guide" element={<GuidePage />} />
+          <Route path="/risk" element={<RiskManagementPage />} />
 
-        {/* ── Normal pages (unmounted when inactive) ── */}
-        {!KEEP_ALIVE_PAGES.has(currentPage) && normalPage()}
+          {/* Keep-alive: Screener */}
+          <Route
+            path="/screener"
+            element={
+              mounted.has("screener") ? (
+                <ScreenerPage
+                  onAddToResearch={handleAddToResearch}
+                  onAddToAutoTrader={handleAddToAutoTrader}
+                />
+              ) : null
+            }
+          />
 
-        {/* ── Keep-alive: Screener ── */}
-        {mounted.has("screener") && (
-          <div style={{ display: isActive("screener") ? "block" : "none" }}>
-            <ScreenerPage
-              onAddToResearch={handleAddToResearch}
-              onAddToAutoTrader={handleAddToAutoTrader}
-            />
-          </div>
-        )}
+          {/* Keep-alive: Research */}
+          <Route
+            path="/research"
+            element={
+              mounted.has("research") ? (
+                <ResearchPage
+                  pendingSymbols={pendingResearchSymbols}
+                  onPendingConsumed={() => setPendingResearchSymbols([])}
+                  onAddToPortfolio={(symbol, strategy, price) =>
+                    handleSendToPortfolio({ symbol, strategy, current_price: price })
+                  }
+                />
+              ) : null
+            }
+          />
 
-        {/* ── Keep-alive: Research ── */}
-        {mounted.has("research") && (
-          <div style={{ display: isActive("research") ? "block" : "none" }}>
-            <ResearchPage
-              pendingSymbols={pendingResearchSymbols}
-              onPendingConsumed={() => setPendingResearchSymbols([])}
-              onAddToPortfolio={(symbol, strategy, price) =>
-                handleSendToPortfolio({ symbol, strategy, current_price: price })
-              }
-            />
-          </div>
-        )}
+          {/* Keep-alive: Portfolio Builder */}
+          <Route
+            path="/portfolio"
+            element={
+              mounted.has("portfolio") ? (
+                <PortfolioBuilderPage
+                  pendingItems={pendingPortfolioItems}
+                  onPendingConsumed={() => setPendingPortfolioItems([])}
+                />
+              ) : null
+            }
+          />
 
-        {/* ── Keep-alive: Portfolio Builder ── */}
-        {mounted.has("portfolio") && (
-          <div style={{ display: isActive("portfolio") ? "block" : "none" }}>
-            <PortfolioBuilderPage
-              pendingItems={pendingPortfolioItems}
-              onPendingConsumed={() => setPendingPortfolioItems([])}
-            />
-          </div>
-        )}
+          {/* Keep-alive: AutoTrader */}
+          <Route
+            path="/autotrader"
+            element={
+              mounted.has("autotrader") ? (
+                <AutoTraderPage
+                  pendingSymbols={pendingAutoTraderSymbols}
+                  onPendingConsumed={() => setPendingAutoTraderSymbols([])}
+                />
+              ) : null
+            }
+          />
 
-        {/* ── Keep-alive: AutoTrader ── */}
-        {mounted.has("autotrader") && (
-          <div style={{ display: isActive("autotrader") ? "block" : "none" }}>
-            <AutoTraderPage
-              pendingSymbols={pendingAutoTraderSymbols}
-              onPendingConsumed={() => setPendingAutoTraderSymbols([])}
-            />
-          </div>
-        )}
-
+          {/* Keep-alive: Exchange Comparison */}
+          <Route
+            path="/exchanges"
+            element={
+              mounted.has("exchanges") ? (
+                <ExchangeComparisonPage />
+              ) : null
+            }
+          />
+        </Routes>
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }

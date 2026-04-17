@@ -10,6 +10,7 @@ const NAV_SECTIONS = [
     label: "Markets",
     items: [
       { id: "dashboard"  as Page, label: "Dashboard",    icon: "⬡" },
+      { id: "exchanges" as Page, label: "Exchanges", icon: "⟷" },
     ],
   },
   {

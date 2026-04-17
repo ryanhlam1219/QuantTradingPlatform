@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────
 #  QuantEdge Trading Platform — Startup Script
+#  Compatible with: bash, Git Bash (Windows), zsh
 # ─────────────────────────────────────────────
 
 RESET="\033[0m";  BOLD="\033[1m";  DIM="\033[2m"
@@ -9,9 +10,43 @@ RED="\033[31m";   CYAN="\033[36m"
 
 BACKEND_PORT=8000
 FRONTEND_PORT=3000
+OLLAMA_PORT=11434
 BACKEND_PID_FILE=".backend.pid"
 FRONTEND_PID_FILE=".frontend.pid"
 LOG_DIR="logs"
+
+# ── OS Detection ───────────────────────────────
+# Detect OS and set activation script path
+detect_os() {
+  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    # Windows (Git Bash, MSYS, Cygwin)
+    OS="windows"
+    VENV_ACTIVATE="venv/Scripts/activate"
+    PYTHON_CMD="python"
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    OS="macos"
+    VENV_ACTIVATE="venv/bin/activate"
+    PYTHON_CMD="python3"
+  else
+    # Linux and others
+    OS="linux"
+    VENV_ACTIVATE="venv/bin/activate"
+    PYTHON_CMD="python3"
+  fi
+}
+
+# Activate venv with OS detection
+activate_venv() {
+  if [ -f "$VENV_ACTIVATE" ]; then
+    source "$VENV_ACTIVATE"
+  else
+    log_warn "Virtual environment not found at $VENV_ACTIVATE"
+    return 1
+  fi
+}
+
+detect_os
 
 print_banner() {
   echo ""
@@ -32,25 +67,38 @@ check_command() {
   if ! command -v "$1" &>/dev/null; then
     log_error "Required command not found: ${BOLD}$1${RESET}"
     case "$1" in
-      python3) echo -e "  Install Python 3.10+: ${CYAN}https://python.org${RESET}" ;;
+      python|python3) echo -e "  Install Python 3.10+: ${CYAN}https://python.org${RESET}" ;;
       node|npm) echo -e "  Install Node.js 18+: ${CYAN}https://nodejs.org${RESET}" ;;
     esac
     exit 1
   fi
 }
 
-port_in_use() { lsof -i ":$1" &>/dev/null 2>&1; }
+port_in_use() {
+  if [[ "$OS" == "windows" ]]; then
+    # Windows: use netstat
+    netstat -ano 2>/dev/null | grep -i "listening" | grep ":$1 " &>/dev/null 2>&1
+  else
+    # Unix/macOS: use lsof
+    lsof -i ":$1" &>/dev/null 2>&1
+  fi
+}
 
 kill_on_port() {
-  local pid
-  pid=$(lsof -ti ":$1" 2>/dev/null)
-  if [ -n "$pid" ]; then
-    # Try graceful kill first
-    kill "$pid" 2>/dev/null
-    sleep 0.5
-    # Force kill if still running
-    kill -9 "$pid" 2>/dev/null
+  if [[ "$OS" == "windows" ]]; then
+    # Windows: use taskkill
+    taskkill /F /FI "LocalPort eq $1" 2>/dev/null
     return 0
+  else
+    # Unix/macOS: use lsof + kill
+    local pid
+    pid=$(lsof -ti ":$1" 2>/dev/null)
+    if [ -n "$pid" ]; then
+      kill "$pid" 2>/dev/null
+      sleep 0.5
+      kill -9 "$pid" 2>/dev/null
+      return 0
+    fi
   fi
   return 1
 }
@@ -97,14 +145,18 @@ setup_backend() {
 
   if [ ! -d "venv" ]; then
     log_info "Creating Python virtual environment…"
-    python3 -m venv venv
+    $PYTHON_CMD -m venv venv
   fi
 
-  source venv/bin/activate
+  if ! activate_venv; then
+    log_error "Failed to activate virtual environment"
+    cd ..
+    return 1
+  fi
 
   local needs_install=0
   [ requirements.txt -nt venv/pyvenv.cfg ] && needs_install=1
-  python3 -c "import fastapi, uvicorn, httpx" 2>/dev/null || needs_install=1
+  $PYTHON_CMD -c "import fastapi, uvicorn, httpx" 2>/dev/null || needs_install=1
 
   if [ "$needs_install" -eq 1 ]; then
     log_info "Installing Python dependencies…"
@@ -141,7 +193,12 @@ setup_frontend() {
 
 start_backend() {
   cd backend
-  source venv/bin/activate
+
+  if ! activate_venv; then
+    log_error "Failed to activate backend venv"
+    cd ..
+    return 1
+  fi
 
   if port_in_use $BACKEND_PORT; then
     log_warn "Port $BACKEND_PORT already in use — assuming backend is running"
@@ -149,19 +206,32 @@ start_backend() {
   fi
 
   mkdir -p "../$LOG_DIR"
-  # Clear previous log so we tail fresh output
   > "../$LOG_DIR/backend.log"
 
-  nohup uvicorn app.main:app \
-    --host 0.0.0.0 \
-    --port $BACKEND_PORT \
-    --reload \
-    --log-level info \
-    > "../$LOG_DIR/backend.log" 2>&1 &
+  if [[ "$OS" == "windows" ]]; then
+    # Windows: start in new cmd window
+    # Note: Running uvicorn in background on Windows, just return 0
+    nohup uvicorn app.main:app \
+      --host 0.0.0.0 \
+      --port $BACKEND_PORT \
+      --reload \
+      --log-level info \
+      > "../$LOG_DIR/backend.log" 2>&1 &
+    local pid=$!
+    echo "$pid" > "../$BACKEND_PID_FILE"
+  else
+    # Unix/macOS: use nohup
+    nohup uvicorn app.main:app \
+      --host 0.0.0.0 \
+      --port $BACKEND_PORT \
+      --reload \
+      --log-level info \
+      > "../$LOG_DIR/backend.log" 2>&1 &
+    local pid=$!
+    echo "$pid" > "../$BACKEND_PID_FILE"
+  fi
 
-  local pid=$!
-  echo "$pid" > "../$BACKEND_PID_FILE"
-  log_success "Backend starting  ${DIM}(PID $pid · logs/$LOG_DIR/backend.log)${RESET}"
+  log_success "Backend starting  ${DIM}(logs/$LOG_DIR/backend.log)${RESET}"
   cd ..
 }
 
@@ -176,12 +246,21 @@ start_frontend() {
   mkdir -p "../$LOG_DIR"
   > "../$LOG_DIR/frontend.log"
 
-  nohup npm run dev -- --port $FRONTEND_PORT \
-    > "../$LOG_DIR/frontend.log" 2>&1 &
+  if [[ "$OS" == "windows" ]]; then
+    # Windows: use nohup (same as Unix/macOS)
+    nohup npm run dev -- --port $FRONTEND_PORT \
+      > "../$LOG_DIR/frontend.log" 2>&1 &
+    local pid=$!
+    echo "$pid" > "../$FRONTEND_PID_FILE"
+  else
+    # Unix/macOS: use nohup
+    nohup npm run dev -- --port $FRONTEND_PORT \
+      > "../$LOG_DIR/frontend.log" 2>&1 &
+    local pid=$!
+    echo "$pid" > "../$FRONTEND_PID_FILE"
+  fi
 
-  local pid=$!
-  echo "$pid" > "../$FRONTEND_PID_FILE"
-  log_success "Frontend starting ${DIM}(PID $pid · logs/$LOG_DIR/frontend.log)${RESET}"
+  log_success "Frontend starting ${DIM}(logs/$LOG_DIR/frontend.log)${RESET}"
   cd ..
 }
 
@@ -282,12 +361,18 @@ wait_for_backend() {
 cmd_start() {
   print_banner
 
-  check_command python3
+  echo -e "  ${BOLD}System Detection${RESET}"
+  log_dim "OS: $OS"
+  log_dim "Python command: $PYTHON_CMD"
+  log_dim "Venv activation: $VENV_ACTIVATE"
+  echo ""
+
+  check_command $PYTHON_CMD
   check_command node
   check_command npm
 
   echo -e "  ${BOLD}Runtime versions${RESET}"
-  log_dim "Python : $(python3 --version 2>&1)"
+  log_dim "Python : $($PYTHON_CMD --version 2>&1)"
   log_dim "Node   : $(node --version 2>&1)"
   log_dim "npm    : $(npm --version 2>&1)"
   echo ""
@@ -324,9 +409,11 @@ cmd_start() {
   echo ""
   echo -e "  ${BOLD}${GREEN}All systems go!${RESET}  ${DIM}(servers running in background)${RESET}"
   echo ""
-  echo -e "  ${BLUE}◈  Frontend  ${RESET}→  ${CYAN}http://localhost:$FRONTEND_PORT${RESET}"
-  echo -e "  ${BLUE}◈  API       ${RESET}→  ${CYAN}http://localhost:$BACKEND_PORT${RESET}"
-  echo -e "  ${BLUE}◈  API Docs  ${RESET}→  ${CYAN}http://localhost:$BACKEND_PORT/docs${RESET}"
+  echo -e "  ${BLUE}◈  Frontend           ${RESET}→  ${CYAN}http://localhost:$FRONTEND_PORT${RESET}"
+  echo -e "  ${BLUE}◈  API                ${RESET}→  ${CYAN}http://localhost:$BACKEND_PORT${RESET}"
+  echo -e "  ${BLUE}◈  API Docs           ${RESET}→  ${CYAN}http://localhost:$BACKEND_PORT/docs${RESET}"
+  echo -e "  ${BLUE}◈  Exchange Comparison${RESET}  →  ${CYAN}http://localhost:$FRONTEND_PORT/exchange-comparison${RESET}"
+  echo -e "  ${BLUE}◈  Ollama             ${RESET}→  ${CYAN}http://localhost:$OLLAMA_PORT${RESET}"
   echo ""
   echo -e "  ${DIM}Servers run in the background — your terminal is free.${RESET}"
   echo -e "  ${DIM}./start.sh stop    — stop all servers${RESET}"
@@ -334,8 +421,10 @@ cmd_start() {
   echo -e "  ${DIM}./start.sh status  — check server health${RESET}"
   echo ""
 
-  # Try to open browser automatically (macOS: open, Linux: xdg-open)
-  if command -v open &>/dev/null; then
+  # Try to open browser automatically
+  if [[ "$OS" == "windows" ]]; then
+    start http://localhost:$FRONTEND_PORT 2>/dev/null || true
+  elif command -v open &>/dev/null; then
     sleep 2 && open "http://localhost:$FRONTEND_PORT" &
     disown $! 2>/dev/null || true
   elif command -v xdg-open &>/dev/null; then
@@ -348,21 +437,31 @@ cmd_stop() {
   print_banner
   log_info "Stopping servers…"
 
-  kill_pid_file "$BACKEND_PID_FILE"  && log_success "Backend stopped" || log_warn "Backend PID file not found"
-  kill_pid_file "$FRONTEND_PID_FILE" && log_success "Frontend stopped" || log_warn "Frontend PID file not found"
+  if [[ "$OS" == "windows" ]]; then
+    # Windows: use taskkill
+    taskkill /F /IM python.exe 2>/dev/null || true
+    taskkill /F /IM node.exe 2>/dev/null || true
+    taskkill /F /IM npm.exe 2>/dev/null || true
+    log_success "Backend stopped"
+    log_success "Frontend stopped"
+  else
+    # Unix/macOS: use kill_pid_file
+    kill_pid_file "$BACKEND_PID_FILE"  && log_success "Backend stopped" || log_warn "Backend PID file not found"
+    kill_pid_file "$FRONTEND_PID_FILE" && log_success "Frontend stopped" || log_warn "Frontend PID file not found"
 
-  # Fallback: kill by port with explicit force kill
-  if kill_on_port $BACKEND_PORT; then
-    log_success "Killed process on port $BACKEND_PORT"
+    # Fallback: kill by port
+    if kill_on_port $BACKEND_PORT; then
+      log_success "Killed process on port $BACKEND_PORT"
+    fi
+
+    if kill_on_port $FRONTEND_PORT; then
+      log_success "Killed process on port $FRONTEND_PORT"
+    fi
+
+    # Additional safety
+    pkill -9 -f "uvicorn app.main" 2>/dev/null || true
+    pkill -9 -f "npm run dev" 2>/dev/null || true
   fi
-  
-  if kill_on_port $FRONTEND_PORT; then
-    log_success "Killed process on port $FRONTEND_PORT"
-  fi
-  
-  # Additional safety: kill any remaining uvicorn/node processes
-  pkill -9 -f "uvicorn app.main" 2>/dev/null || true
-  pkill -9 -f "npm run dev" 2>/dev/null || true
 
   echo ""
   log_success "Done."
@@ -395,6 +494,18 @@ cmd_status() {
     log_success "Frontend running  (port $FRONTEND_PORT)"
   else
     log_error "Frontend not running (port $FRONTEND_PORT is free)"
+  fi
+
+  echo ""
+
+  if port_in_use $OLLAMA_PORT; then
+    if curl -sf --max-time 3 "http://localhost:$OLLAMA_PORT/api/tags" > /dev/null 2>&1; then
+      log_success "Ollama   running and healthy  (port $OLLAMA_PORT)"
+    else
+      log_warn  "Ollama   port $OLLAMA_PORT in use but /api/tags not responding yet"
+    fi
+  else
+    log_warn "Ollama   not running (port $OLLAMA_PORT is free — run 'ollama serve' separately)"
   fi
 
   echo ""
@@ -432,7 +543,7 @@ cmd_help() {
   echo -e "  ${BOLD}Usage:${RESET}  ./start.sh [command]"
   echo ""
   echo -e "  ${BOLD}Commands:${RESET}"
-  echo -e "    ${CYAN}start${RESET}            Start both servers ${DIM}(default — frees terminal when ready)${RESET}"
+  echo -e "    ${CYAN}start${RESET}            Start both servers ${DIM}(default)${RESET}"
   echo -e "    ${CYAN}stop${RESET}             Stop all running servers"
   echo -e "    ${CYAN}restart${RESET}          Stop then start"
   echo -e "    ${CYAN}status${RESET}           Show server health"
@@ -443,9 +554,12 @@ cmd_help() {
   echo -e "    ${CYAN}help${RESET}             Show this message"
   echo ""
   echo -e "  ${BOLD}Examples:${RESET}"
-  echo -e "    ${DIM}./start.sh${RESET}               # start — browser opens automatically"
+  echo -e "    ${DIM}./start.sh${RESET}               # start everything (browser opens automatically)"
   echo -e "    ${DIM}./start.sh stop${RESET}          # stop everything"
-  echo -e "    ${DIM}./start.sh logs backend${RESET}  # watch backend output"
+  echo -e "    ${DIM}./start.sh logs backend${RESET}  # watch backend logs"
+  echo ""
+  echo -e "  ${BOLD}Compatible with:${RESET}  bash, Git Bash, zsh, macOS, Linux, Windows"
+  echo -e "  ${BOLD}Note on Ollama:${RESET}  Start in separate terminal with: ${CYAN}ollama serve${RESET}"
   echo ""
 }
 
